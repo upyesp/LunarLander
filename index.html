@@ -39,8 +39,12 @@ h2{font-size:min(4vw,1.6rem);color:#999;font-weight:normal;letter-spacing:.05em;
 .level-best{font-size:clamp(.5rem,1.5vw,.7rem);color:#666;margin-top:1px}
 
 /* Game HUD */
-#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:8px 14px;font-size:min(2.2vw,.75rem);color:#999;z-index:5;background:linear-gradient(rgba(8,8,14,.8),transparent)}
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:8px 14px;font-size:min(2.2vw,.75rem);color:#999;z-index:5;background:linear-gradient(rgba(8,8,14,.8),transparent)}
 #hud-right{text-align:right}
+
+/* Abort button */
+.abort-btn{width:36px!important;height:36px!important;border-radius:50%!important;font-size:min(2.5vw,.9rem)!important;padding:0!important;line-height:1!important;display:flex;align-items:center;justify-content:center;background:rgba(204,68,68,.08)!important;border-color:#c44!important;color:#c44!important}
+.abort-btn:hover{background:rgba(204,68,68,.18)!important;border-color:#e55!important;color:#f66!important}
 
 /* Touch Controls */
 #touch-controls{position:fixed;bottom:max(6%,12px);left:0;right:0;display:flex;justify-content:center;gap:min(6vw,48px);z-index:5;padding:0 12px}
@@ -59,6 +63,9 @@ h2{font-size:min(4vw,1.6rem);color:#999;font-weight:normal;letter-spacing:.05em;
 .desktop-hint{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);font-size:clamp(.55rem,1.5vw,.72rem);color:#3a3a4a;z-index:5;display:none}
 @media(min-width:769px){.desktop-hint{display:block}}
 
+/* In-game controls hint */
+#game-hint{position:fixed;bottom:max(18%,36px);left:50%;transform:translateX(-50%);font-size:clamp(.6rem,1.8vw,.82rem);color:#7a7a9a;z-index:4;text-align:center;background:rgba(8,8,14,.7);padding:6px 16px;border-radius:20px;pointer-events:none}
+
 /* Responsive */
 @media(max-height:500px){
   .ctrl-btn{width:min(18vw,72px);height:min(18vw,72px)}
@@ -74,6 +81,8 @@ h2{font-size:min(4vw,1.6rem);color:#999;font-weight:normal;letter-spacing:.05em;
 <div id="hud" class="hidden">
   <div id="hud-left">FUEL <span id="hud-fuel">100</span>% | SPD <span id="hud-spd">0.0</span></div>
   <div id="hud-right"><div id="hud-alt">ALT 0</div><div id="hud-lvl">LEVEL 1</div></div>
+  <!-- Abort button (top-right corner of HUD) -->
+  <button id="btn-abort" class="ctrl-btn abort-btn" title="Abort level (Esc)">X</button>
 </div>
 
 <!-- Touch Controls -->
@@ -91,8 +100,11 @@ h2{font-size:min(4vw,1.6rem);color:#999;font-weight:normal;letter-spacing:.05em;
     <button id="btn-start" class="btn btn-primary">&#9654; PLAY</button>
     <button id="btn-level-select" class="btn">LEVELS</button>
   </div>
-  <p class="desktop-hint">W = thrust &nbsp; A / D = rotate</p>
+  <p class="desktop-hint">W = thrust &nbsp; A / D = rotate &nbsp; Esc = abort</p>
 </div>
+
+<!-- In-game controls hint (desktop only, fades out after 6s) -->
+<div id="game-hint" class="hidden">W/A/D or arrow keys to fly &nbsp;|&nbsp; Esc to abort</div>
 
 <!-- Level Select Screen -->
 <div id="level-screen" class="overlay hidden">
@@ -184,6 +196,7 @@ document.addEventListener('keydown', function(e) {
     case 'w': case 'arrowup': input.thrust = true; e.preventDefault(); break;
     case 'a': case 'arrowleft': input.left = true; e.preventDefault(); break;
     case 'd': case 'arrowright': input.right = true; e.preventDefault(); break;
+    case 'escape': abortLevel(); e.preventDefault(); break;
   }
 });
 document.addEventListener('keyup', function(e) {
@@ -259,57 +272,70 @@ function updateRotation() {
 }
 
 function updatePosition() {
-  const newX = lander.x + lander.vx * dt;
-  const newY = lander.y + lander.vy * dt;
+  const newX = Math.max(20, Math.min(C_W - 20, lander.x + lander.vx * dt));
+  const newY = Math.max(-10, lander.y + lander.vy * dt);   // allow slight overshoot above top
 
-  // Collision detection against terrain segments
-  let crashed = false, landed = false;
-  for (let i = 0; i < terrain.length - 1; i++) {
-    const seg = terrain[i];
-    if (newX >= seg.x && newX <= terrain[i+1].x) {
-      const t = (newX - seg.x) / (terrain[i+1].x - seg.x);
-      const ty = seg.y + t * (terrain[i+1].y - seg.y);
-      if (newY >= ty) { crashed = true; break; }
-    }
-  }
-
-  // Check landing: all bottom vertices on or above terrain?
-  if (!crashed && isNewLanded()) landed = true;
-
+  // Update position first, then check collision/landing against new state
   lander.x = newX;
   lander.y = newY;
+
+  // Landing check first — if both feet are on the ground, it's a landing (even if
+  // the center is slightly below the terrain due to slope/tilt).
+  let landed = isNewLanded();
+
+  // Collision detection: center below terrain surface AND not already grounded → crash
+  let crashed = !landed;
+  if (crashed) {
+    for (let i = 0; i < terrain.length - 1; i++) {
+      const seg = terrain[i];
+      if (newX >= seg.x && newX <= terrain[i+1].x) {
+        const t = (newX - seg.x) / (terrain[i+1].x - seg.x);
+        const ty = seg.y + t * (terrain[i+1].y - seg.y);
+        if (newY >= ty) { crashed = true; break; }
+      }
+    }
+  }
 
   if (crashed) { endCrash(); return; }
   if (landed) { endWin(); }
 }
 
+// Returns true only when BOTH bottom corners are at or near the terrain surface,
+// and there is actual terrain between/under them to support the lander.
 function isNewLanded() {
   const b1 = getBottomLeft(), b2 = getBottomRight();
+
+  let groundedCount = 0;
   for (let i = 0; i < terrain.length - 1; i++) {
     const seg = terrain[i];
-    if (!inRange(b1.x, seg.x, terrain[i+1].x) || !inRange(b2.x, seg.x, terrain[i+1].x)) continue;
+    if (!inRange(b1.x, seg.x, terrain[i+1].x) && !inRange(b2.x, seg.x, terrain[i+1].x)) continue;
+
     for (const v of [b1, b2]) {
+      if (!inRange(v.x, seg.x, terrain[i+1].x)) continue;
       const t = (v.x - seg.x) / (terrain[i+1].x - seg.x);
-      if (v.y > seg.y + t * (terrain[i+1].y - seg.y) + 0.5) return false;
+      const surfaceY = seg.y + t * (terrain[i+1].y - seg.y);
+      if (v.y >= surfaceY - 2.0) groundedCount++;
     }
   }
-  // Must also be on or above at least one terrain point between feet
-  const footMidX = (b1.x + b2.x) / 2;
-  for (let i = 0; i < terrain.length - 1; i++) {
-    if (footMidX >= terrain[i].x && footMidX <= terrain[i+1].x) return true;
-  }
-  return false;
+
+  return groundedCount >= 2;
 }
 
-function getBottomLeft()  { return pointAt(lander.angle, 0.55); }
-function getBottomRight() { return pointAt(lander.angle, -0.55); }
-function getTop()          { return pointAt(lander.angle, 0); }
+// Foot positions in the lander's local frame, then rotated into world space
+const FOOT_LX = -9, FOOT_RX = 9, FOOT_DY = 15;  // left/right offset and depth from center
 
-// Point relative to lander center: positive offset = downward (toward feet)
-function pointAt(angle, off) {
-  const dx = Math.sin(angle) * off;
-  const dy = -Math.cos(angle) * off;
-  return { x: lander.x + dx, y: lander.y + dy };
+function getBottomLeft() { return rotatePoint(lander.angle, FOOT_LX, FOOT_DY); }
+function getBottomRight() { return rotatePoint(lander.angle, FOOT_RX, FOOT_DY); }
+function getTop()          { return rotatePoint(lander.angle, 0, -12); }
+
+// Rotate a local point (lx, ly) around the lander center by angle (radians).
+// Positive angle rotates clockwise in screen space.
+function rotatePoint(angle, lx, ly) {
+  const cosA = Math.cos(angle), sinA = Math.sin(angle);
+  return {
+    x: lander.x + lx * cosA - ly * sinA,
+    y: lander.y + lx * sinA + ly * cosA
+  };
 }
 
 function inRange(v, lo, hi) { return v >= lo - 1 && v <= hi + 1; }
@@ -624,15 +650,38 @@ function startLevel(level) {
   const isMobile = 'ontouchstart' in window;
   document.getElementById('touch-controls').classList.toggle('hidden', !isMobile);
 
+  // Show controls hint briefly on desktop (not on mobile — they have buttons)
+  if (!isMobile) {
+    const hint = document.getElementById('game-hint');
+    hint.classList.remove('hidden');
+    setTimeout(function() { hint.classList.add('hidden'); }, 6000);
+  }
+
   lastTime = performance.now();
   levelStartTime = lastTime;
 }
+
+// Abort current flight and return to menu without penalty
+function abortLevel() {
+  if (state !== 'playing') return;
+  state = 'menu';
+  particles = [];
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('touch-controls').classList.add('hidden');
+  showMenu();
+}
+
+// Wire up abort button click handler
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.id === 'btn-abort') abortLevel();
+});
 
 function endCrash() {
   state = 'crashed';
   spawnExplosion();
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('touch-controls').classList.add('hidden');
+  document.getElementById('game-hint').classList.add('hidden');
   const spd = Math.sqrt(lander.vx*lander.vx + lander.vy*lander.vy);
   let crashMsg = 'Impact speed: ' + spd.toFixed(1) + ' px/s';
   if (highScores['ll_best_' + currentLevel] > 0) {
@@ -666,6 +715,7 @@ function endWin() {
 
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('touch-controls').classList.add('hidden');
+  document.getElementById('game-hint').classList.add('hidden');
   document.getElementById('win-score').textContent = 'Score: ' + score.toLocaleString() + ' | Fuel: ' + Math.round(fuelPct) + '%';
   if (score > oldBest) {
     document.getElementById('win-best').textContent = 'NEW BEST!';
