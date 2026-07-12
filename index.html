@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Lunar Lander</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#08080e;color:#ccc;font-family:'Courier New',monospace;touch-action:none;user-select:none;-webkit-user-select:none}
+#game-canvas{display:block;width:100%;height:100%}
+
+/* Overlays */
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,8,14,.92);z-index:10;padding:16px}
+.hidden{display:none!important}
+
+h1{font-size:min(7vw,3rem);color:#e8e8e8;text-shadow:0 0 20px rgba(255,255,255,.15);letter-spacing:.08em;margin-bottom:.1em;text-align:center;line-height:1.1}
+h2{font-size:min(4vw,1.6rem);color:#999;font-weight:normal;letter-spacing:.05em;margin-bottom:1.2em;text-align:center}
+.subtitle{color:#666;font-size:clamp(.7rem,2vw,.95rem);margin-bottom:2em;text-align:center}
+
+/* Buttons */
+.btn{background:none;border:1.8px solid #3a3a4a;color:#ccc;padding:14px 32px;font-family:'Courier New',monospace;font-size:min(3.5vw,1.05rem);cursor:pointer;border-radius:6px;transition:border-color .15s,color .15s;text-transform:uppercase;letter-spacing:.08em;min-width:120px;outline:none}
+.btn:hover,.btn:focus{border-color:#7a7a9a;color:#fff}
+.btn:active{background:rgba(255,255,255,.04)}
+.btn-primary{border-color:#f0c040;color:#f0c040;font-weight:bold}
+.btn-primary:hover,.btn-primary:focus{background:rgba(240,192,64,.08);color:#ffd86e;border-color:#ffd86e}
+
+/* Menu */
+#menu-screen h1{margin-bottom:.05em}
+.menu-btns{display:flex;flex-direction:column;gap:12px;align-items:center;margin-top:.3em;width:100%;max-width:340px}
+
+/* Level Select */
+.level-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;width:100%;max-width:420px;padding:8px}
+.level-btn{width:100%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:none;border:1.8px solid #3a3a4a;color:#7a7a9a;font-family:'Courier New',monospace;border-radius:8px;cursor:pointer;padding:4px 2px;text-align:center;line-height:1.2;transition:border-color .15s,color .15s}
+.level-btn:not(.locked):hover{border-color:#7a7a9a;color:#fff}
+.level-btn.completed{border-color:#3a8a3a;color:#4c4;font-weight:bold}
+.level-btn.locked{opacity:.35;cursor:default;border-color:#222}
+.level-num{font-size:min(4vw,1.4rem)}
+.level-best{font-size:clamp(.5rem,1.5vw,.7rem);color:#666;margin-top:1px}
+
+/* Game HUD */
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:8px 14px;font-size:min(2.2vw,.75rem);color:#999;z-index:5;background:linear-gradient(rgba(8,8,14,.8),transparent)}
+#hud-right{text-align:right}
+
+/* Touch Controls */
+#touch-controls{position:fixed;bottom:max(6%,12px);left:0;right:0;display:flex;justify-content:center;gap:min(6vw,48px);z-index:5;padding:0 12px}
+.ctrl-btn{width:min(22vw,96px);height:min(22vw,96px);border-radius:50%;background:rgba(255,255,255,.04);border:2px solid #3a3a4a;color:#aaa;font-size:min(2.8vw,.95rem);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;-webkit-tap-highlight-color:transparent}
+.ctrl-btn.active{background:rgba(240,192,64,.1);border-color:#f0c040;color:#f0c040}
+#btn-thrust{font-size:min(3.5vw,1.2rem)}
+
+/* Result screens */
+.result-title{font-size:clamp(1.8rem,6vw,2.8rem);margin-bottom:.2em;text-align:center}
+.result-title.win{color:#4c4;text-shadow:0 0 20px rgba(68,204,68,.2)}
+.result-title.fail{color:#c44;text-shadow:0 0 20px rgba(204,68,68,.15)}
+.result-score{font-size:min(3vw,1.1rem);margin-bottom:.4em;color:#e8e8e8}
+.result-best{font-size:clamp(.75rem,2.2vw,.9rem);color:#f0c040;margin-bottom:1.6em}
+
+/* Desktop controls hint */
+.desktop-hint{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);font-size:clamp(.55rem,1.5vw,.72rem);color:#3a3a4a;z-index:5;display:none}
+@media(min-width:769px){.desktop-hint{display:block}}
+
+/* Responsive */
+@media(max-height:500px){
+  .ctrl-btn{width:min(18vw,72px);height:min(18vw,72px)}
+  #touch-controls{bottom:4px;gap:24px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="game-canvas"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="hud-left">FUEL <span id="hud-fuel">100</span>% | SPD <span id="hud-spd">0.0</span></div>
+  <div id="hud-right"><div id="hud-alt">ALT 0</div><div id="hud-lvl">LEVEL 1</div></div>
+</div>
+
+<!-- Touch Controls -->
+<div id="touch-controls" class="hidden">
+  <button id="btn-left" class="ctrl-btn">&#8592;</button>
+  <button id="btn-thrust" class="ctrl-btn">&#x2B07;</button>
+  <button id="btn-right" class="ctrl-btn">&#8594;</button>
+</div>
+
+<!-- Menu Screen -->
+<div id="menu-screen" class="overlay">
+  <h1>LUNAR<br><span style="color:#f0c040">LANDER</span></h1>
+  <p class="subtitle">A Lunar Lander Puzzle Game</p>
+  <div class="menu-btns">
+    <button id="btn-start" class="btn btn-primary">&#9654; PLAY</button>
+    <button id="btn-level-select" class="btn">LEVELS</button>
+  </div>
+  <p class="desktop-hint">W = thrust &nbsp; A / D = rotate</p>
+</div>
+
+<!-- Level Select Screen -->
+<div id="level-screen" class="overlay hidden">
+  <h2>SELECT LEVEL</h2>
+  <div id="level-grid" class="level-grid"></div>
+  <button id="btn-menu-back" class="btn" style="margin-top:1.2em">&#8592; BACK</button>
+</div>
+
+<!-- Game Over Screen -->
+<div id="crash-screen" class="overlay hidden">
+  <h2 class="result-title fail">&#x2620; CRASHED</h2>
+  <p class="result-score" id="crash-info"></p>
+  <button id="btn-retry" class="btn btn-primary">RETRY</button>
+  <button id="btn-crash-menu" class="btn" style="margin-top:10px">&#8592; MENU</button>
+</div>
+
+<!-- Win Screen -->
+<div id="win-screen" class="overlay hidden">
+  <h2 class="result-title win">&#x2714; SAFE LANDING</h2>
+  <p class="result-score" id="win-score"></p>
+  <p class="result-best" id="win-best"></p>
+  <button id="btn-next-level" class="btn btn-primary">NEXT LEVEL &#8594;</button>
+  <button id="btn-win-menu" class="btn" style="margin-top:10px">&#8592; MENU</button>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   CONSTANTS
+============================================================ */
+const C_W = 400, C_H = 600;                       // internal resolution
+const GROUND_Y = C_H - 30;                         // ground y in game coords
+const GRAVITY = 18;                                // px/s²
+const THRUST_POWER = 26;                           // px/s² when thrusting
+const MAX_THRUST_FORCE = 7.5;                      // max combined force
+const ROTATE_SPEED = 2.4;                          // rad/s rotation rate
+const ANGULAR_DRAG = 0.93;                         // per-frame angular damping
+const LAND_VY_MAX = 6;                            // safe vertical speed (px/s)
+const LAND_ANGLE_MAX = 15 * Math.PI / 180;       // max tilt for landing
+const MAX_FUEL = 100;                              // starting fuel units
+const LEVEL_COUNT = 12;
+
+/* ============================================================
+   STATE
+============================================================ */
+let state = 'menu';                               // menu | playing | crashed | won
+let currentLevel = 1;
+let lander, terrain, landingPad, stars;
+let particles = [];
+let input = { thrust: false, left: false, right: false };
+let lastTime = 0, dt = 0;
+let levelStartTime = 0;                         // timestamp when current level started (ms)
+let levelUnlocked = 1;                            // highest unlocked level
+let highScores = {};                              // per-level best scores
+
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+let scale = Math.min(window.innerWidth / C_W, window.innerHeight / C_H);
+
+function resizeCanvas() {
+  scale = Math.min(window.innerWidth / C_W, window.innerHeight / C_H);
+  canvas.width = C_W * scale;
+  canvas.height = C_H * scale;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+/* ============================================================
+   LOCAL STORAGE
+============================================================ */
+function saveProgress() {
+  try { localStorage.setItem('ll_progress', JSON.stringify({ u: levelUnlocked })); } catch(e) {}
+}
+function loadProgress() {
+  try {
+    const d = JSON.parse(localStorage.getItem('ll_progress'));
+    if (d && typeof d.u === 'number') levelUnlocked = Math.min(d.u, LEVEL_COUNT);
+    const s = JSON.parse(localStorage.getItem('ll_scores'));
+    if (s) highScores = s;
+  } catch(e) {}
+}
+
+/* ============================================================
+   INPUT — keyboard + touch
+============================================================ */
+document.addEventListener('keydown', function(e) {
+  switch(e.key.toLowerCase()) {
+    case 'w': case 'arrowup': input.thrust = true; e.preventDefault(); break;
+    case 'a': case 'arrowleft': input.left = true; e.preventDefault(); break;
+    case 'd': case 'arrowright': input.right = true; e.preventDefault(); break;
+  }
+});
+document.addEventListener('keyup', function(e) {
+  switch(e.key.toLowerCase()) {
+    case 'w': case 'arrowup': input.thrust = false; break;
+    case 'a': case 'arrowleft': input.left = false; break;
+    case 'd': case 'arrowright': input.right = false; break;
+  }
+});
+
+// Touch buttons — preventDefault inside handlers so scrolling doesn't steal focus
+document.addEventListener('touchstart', function(e) {
+  for (const el of e.changedTouches) {
+    const t = document.elementFromPoint(el.clientX, el.clientY);
+    if (t && t.id === 'btn-thrust') { input.thrust = true; t.classList.add('active'); e.preventDefault(); }
+    else if (t && t.id === 'btn-left')  { input.left = true; t.classList.add('active'); e.preventDefault(); }
+    else if (t && t.id === 'btn-right') { input.right = true; t.classList.add('active'); e.preventDefault(); }
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', function(e) {
+  for (const el of e.changedTouches) {
+    const t = document.elementFromPoint(el.clientX, el.clientY);
+    if (!t || !t.classList.contains('ctrl-btn')) continue;
+    t.classList.remove('active');
+    switch(t.id) {
+      case 'btn-thrust': input.thrust = false; break;
+      case 'btn-left':  input.left = false; break;
+      case 'btn-right': input.right = false; break;
+    }
+  }
+}, { passive: true });
+
+// Menu buttons (click handles both mouse and touch)
+document.getElementById('btn-start').addEventListener('click', function() { startLevel(1); });
+document.getElementById('btn-level-select').addEventListener('click', showLevelSelect);
+document.getElementById('btn-menu-back').addEventListener('click', showMenu);
+document.getElementById('btn-retry').addEventListener('click', function() { startLevel(currentLevel); });
+document.getElementById('btn-crash-menu').addEventListener('click', showMenu);
+document.getElementById('btn-next-level').addEventListener('click', nextLevelOrMenu);
+document.getElementById('btn-win-menu').addEventListener('click', showMenu);
+
+// Delegated button handler for level grid
+document.getElementById('level-grid').addEventListener('click', function(e) {
+  const b = e.target.closest('.level-btn');
+  if (b && !b.classList.contains('locked')) startLevel(parseInt(b.dataset.level));
+});
+
+/* ============================================================
+   PHYSICS
+============================================================ */
+function applyGravity() {
+  lander.vy += GRAVITY * dt;
+}
+
+function applyThrust() {
+  const f = input.thrust && lander.fuel > 0 ? Math.min(THRUST_POWER, MAX_THRUST_FORCE) : 0;
+  if (f <= 0) return;
+  const ca = Math.cos(-lander.angle), sa = Math.sin(-lander.angle);
+  lander.vx += f * ca * dt;
+  lander.vy += f * sa * dt;
+  // Consume fuel proportionally to force applied
+  lander.fuel -= (f / THRUST_POWER) * 12 * dt;
+}
+
+function updateRotation() {
+  let av = 0;
+  if (input.left)  av -= ROTATE_SPEED;
+  if (input.right) av += ROTATE_SPEED;
+  lander.av += av * dt;
+  lander.angle += lander.av * dt;
+  lander.av *= Math.pow(ANGULAR_DRAG, dt * 60);   // delta-time-corrected drag
+}
+
+function updatePosition() {
+  const newX = lander.x + lander.vx * dt;
+  const newY = lander.y + lander.vy * dt;
+
+  // Collision detection against terrain segments
+  let crashed = false, landed = false;
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const seg = terrain[i];
+    if (newX >= seg.x && newX <= terrain[i+1].x) {
+      const t = (newX - seg.x) / (terrain[i+1].x - seg.x);
+      const ty = seg.y + t * (terrain[i+1].y - seg.y);
+      if (newY >= ty) { crashed = true; break; }
+    }
+  }
+
+  // Check landing: all bottom vertices on or above terrain?
+  if (!crashed && isNewLanded()) landed = true;
+
+  lander.x = newX;
+  lander.y = newY;
+
+  if (crashed) { endCrash(); return; }
+  if (landed) { endWin(); }
+}
+
+function isNewLanded() {
+  const b1 = getBottomLeft(), b2 = getBottomRight();
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const seg = terrain[i];
+    if (!inRange(b1.x, seg.x, terrain[i+1].x) || !inRange(b2.x, seg.x, terrain[i+1].x)) continue;
+    for (const v of [b1, b2]) {
+      const t = (v.x - seg.x) / (terrain[i+1].x - seg.x);
+      if (v.y > seg.y + t * (terrain[i+1].y - seg.y) + 0.5) return false;
+    }
+  }
+  // Must also be on or above at least one terrain point between feet
+  const footMidX = (b1.x + b2.x) / 2;
+  for (let i = 0; i < terrain.length - 1; i++) {
+    if (footMidX >= terrain[i].x && footMidX <= terrain[i+1].x) return true;
+  }
+  return false;
+}
+
+function getBottomLeft()  { return pointAt(lander.angle, 0.55); }
+function getBottomRight() { return pointAt(lander.angle, -0.55); }
+function getTop()          { return pointAt(lander.angle, 0); }
+
+// Point relative to lander center: positive offset = downward (toward feet)
+function pointAt(angle, off) {
+  const dx = Math.sin(angle) * off;
+  const dy = -Math.cos(angle) * off;
+  return { x: lander.x + dx, y: lander.y + dy };
+}
+
+function inRange(v, lo, hi) { return v >= lo - 1 && v <= hi + 1; }
+
+/* ============================================================
+   COLLISION DETECTION HELPERS
+============================================================ */
+function lineIntersect(ax,ay,bx,by,cx,cy,dx,dy) {
+  const denom = (bx-ax)*(dy-cy)-(ay-by)*(dx-cx);
+  if (Math.abs(denom) < 1e-8) return null;
+  const t = ((cx-ax)*(dy-cy)-(cy-ay)*(dx-cx)) / denom;
+  const u = ((cx-ax)*(by-ay)-(cy-ay)*(bx-ax)) / denom;
+  if (t >= -0.5 && t <= terrain.length) return { x: ax+t*(bx-ax), y: ay+t*(by-ay) };
+  return null;
+}
+
+/* ============================================================
+   TERRAIN GENERATION
+============================================================ */
+function generateTerrain(level) {
+  const d = Math.min((level - 1) / (LEVEL_COUNT - 1), 1);
+  terrain = [];
+  const padX = C_W * (0.25 + d * 0.35);       // pad moves toward center with difficulty
+  const padW = Math.max(42, 78 - d * 22);      // pad narrows
+
+  for (let x = 0; x <= C_W; x += 4) {
+    let y = GROUND_Y;
+    if (x < padX || x > padX + padW) {
+      const n1 = Math.sin(x * 0.012 + level * 1.7) * (35 + d*60);
+      const n2 = Math.sin(x * 0.035 + level * 3.1) * (18 + d*30);
+      const n3 = Math.sin(x * 0.08 + level * 5.7) * (5 + d*14);
+      y += n1 + n2 + n3;
+    }
+    terrain.push({ x: x, y: y });
+  }
+
+  // Determine landing pad range from actual flat segment in the generated terrain
+  let bestStart = -1, bestLen = 0, startIdx = 0;
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const dy = Math.abs(terrain[i+1].y - terrain[i].y);
+    if (dy < 4) {
+      if (i === 0 || Math.abs(terrain[i].y - terrain[Math.max(0,i-1)].y) >= 4) startIdx = i;
+      const len = i - startIdx + 1;
+      if (len > bestLen) { bestLen = len; bestStart = startIdx; }
+    } else {
+      startIdx = i + 1;
+    }
+  }
+
+  landingPad = bestLen >= 3 ? {
+    x0: terrain[bestStart].x,
+    y0: terrain[bestStart].y,
+    x1: terrain[Math.min(bestStart + bestLen - 1, terrain.length-1)].x,
+    y1: terrain[Math.min(bestStart + bestLen - 1, terrain.length-1)].y
+  } : null;
+}
+
+/* ============================================================
+   PARTICLES (thrust flame & crash explosion)
+============================================================ */
+function spawnThrustParticles() {
+  if (!input.thrust || lander.fuel <= 0) return;
+  const a = -lander.angle;
+  for (let i = 0; i < 3; i++) {
+    particles.push({
+      x: lander.x + Math.sin(a) * 18,
+      y: lander.y + Math.cos(a) * 18,
+      vx: -Math.sin(a) * (50 + Math.random()*40) + lander.vx*0.3,
+      vy: -Math.cos(a) * (50 + Math.random()*40) + lander.vy*0.3 + 20,
+      life: 0.3 + Math.random()*0.2,
+      maxLife: 0.3 + Math.random()*0.2,
+      size: 2.5 + Math.random()*2,
+      color: Math.random() > 0.4 ? '#f0c040' : '#ff6020'
+    });
+  }
+}
+
+function spawnExplosion() {
+  for (let i = 0; i < 35; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 40 + Math.random() * 120;
+    particles.push({
+      x: lander.x, y: lander.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 30,
+      life: 0.6 + Math.random()*0.8,
+      maxLife: 0.6 + Math.random()*0.8,
+      size: 1.5 + Math.random()*4,
+      color: ['#f0c040','#ff6020','#ff3010','#fff'][Math.floor(Math.random()*4)]
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += GRAVITY * 0.4 * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+/* ============================================================
+   RENDERING
+============================================================ */
+function drawBackground() {
+  ctx.fillStyle = '#08080e';
+  ctx.fillRect(0, 0, C_W, C_H);
+  // Stars
+  for (const s of stars) {
+    const sx = s.x * scale;
+    const sy = s.y * scale;
+    if (sx < -5 || sx > canvas.width+5 || sy < -5 || sy > canvas.height+5) continue;
+    ctx.fillStyle = 'rgba(200,210,230,' + (0.2 + s.brightness*0.45) + ')';
+    ctx.fillRect(sx - 0.5, sy - 0.5, s.size * scale, s.size * scale);
+  }
+}
+
+function drawTerrain() {
+  // Surface fill
+  ctx.beginPath();
+  for (let i = 0; i < terrain.length; i++) {
+    const x = terrain[i].x * scale, y = terrain[i].y * scale;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(terrain[terrain.length-1].x * scale, C_H * scale);
+  ctx.lineTo(terrain[0].x * scale, C_H * scale);
+  ctx.closePath();
+  ctx.fillStyle = '#1a1a26';
+  ctx.fill();
+
+  // Terrain outline + landing pad highlight
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const s = terrain[i], e = terrain[i+1];
+    if (landingPad && s.x >= landingPad.x0 && e.x <= landingPad.x1) {
+      ctx.strokeStyle = '#3a8a3a';
+      ctx.lineWidth = 2.5;
+    } else {
+      ctx.strokeStyle = '#4a4a5c';
+      ctx.lineWidth = 1.6;
+    }
+    ctx.beginPath();
+    ctx.moveTo(s.x * scale, s.y * scale);
+    ctx.lineTo(e.x * scale, e.y * scale);
+    ctx.stroke();
+  }
+
+  // Landing pad markers (small triangles on each side)
+  if (landingPad) {
+    const px = landingPad.x0 * scale;
+    const py = landingPad.y0 * scale;
+    const pw = (landingPad.x1 - landingPad.x0) * scale;
+    drawTriangle(px, py, 7*scale, true);
+    drawTriangle(px + pw, py, 7*scale, false);
+  }
+}
+
+function drawTriangle(x, y, s, left) {
+  ctx.beginPath();
+  if (left) {
+    ctx.moveTo(x - s*0.5, y);
+    ctx.lineTo(x + s*0.5, y);
+    ctx.lineTo(x, y - s);
+  } else {
+    ctx.moveTo(x + s*0.5, y);
+    ctx.lineTo(x - s*0.5, y);
+    ctx.lineTo(x, y - s);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#3a8a3a';
+  ctx.fill();
+}
+
+function drawLander() {
+  const cx = lander.x * scale, cy = lander.y * scale;
+  const s = scale;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(lander.angle);
+
+  // Body (top wider than bottom — classic lander shape)
+  ctx.beginPath();
+  ctx.moveTo(-10*s, -8*s);
+  ctx.lineTo(10*s, -8*s);
+  ctx.lineTo(9*s, 6*s);
+  ctx.lineTo(-9*s, 6*s);
+  ctx.closePath();
+  ctx.strokeStyle = '#d0d0d0';
+  ctx.lineWidth = 2 * s;
+  ctx.stroke();
+
+  // Window
+  ctx.beginPath();
+  ctx.arc(0, -3*s, 3.5*s, 0, Math.PI*2);
+  ctx.strokeStyle = '#f0c040';
+  ctx.lineWidth = 1.5 * s;
+  ctx.stroke();
+
+  // Antenna
+  ctx.beginPath();
+  ctx.moveTo(0, -8*s);
+  ctx.lineTo(0, -13*s);
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1.2 * s;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, -14*s, 1.5*s, 0, Math.PI*2);
+  ctx.fillStyle = '#aaa';
+  ctx.fill();
+
+  // Left leg
+  drawLeg(-8*s, 6*s, -14*s, 16*s, s);
+  // Right leg
+  drawLeg(8*s, 6*s, 14*s, 16*s, s);
+
+  ctx.restore();
+
+  // Thrust flame (screen-space)
+  if (input.thrust && lander.fuel > 0) {
+    const a = -lander.angle;
+    const flameLen = (28 + Math.random()*12) * s;
+    const fx = cx + Math.sin(a) * 16*s;
+    const fy = cy + Math.cos(a) * 16*s;
+    ctx.save();
+    ctx.translate(fx, fy);
+    ctx.rotate(-a - Math.PI/2);
+    ctx.beginPath();
+    ctx.moveTo(0, flameLen);
+    ctx.lineTo(-5*s, 0);
+    ctx.lineTo(5*s, 0);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(240,192,64,' + (0.7+Math.random()*0.3) + ')';
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawLeg(x1, y1, x2, y2, s) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.strokeStyle = '#b0b0b0';
+  ctx.lineWidth = 2 * s;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  // Footpad (flat pad at bottom of leg)
+  const padW = 5 * s;
+  ctx.beginPath();
+  ctx.moveTo(x2 - padW, y2);
+  ctx.lineTo(x2 + padW, y2);
+  ctx.strokeStyle = '#c0c0c0';
+  ctx.lineWidth = 2.5 * s;
+  ctx.stroke();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x*scale - p.size*scale/2, p.y*scale - p.size*scale/2, p.size*scale, p.size*scale);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ============================================================
+   HUD
+============================================================ */
+function updateHUD() {
+  document.getElementById('hud-fuel').textContent = Math.max(0, Math.round(lander.fuel));
+  const speed = Math.sqrt(lander.vx*lander.vx + lander.vy*lander.vy);
+  document.getElementById('hud-spd').textContent = speed.toFixed(1);
+  // Altitude: vertical distance to terrain directly below
+  let alt = Infinity;
+  for (let i = 0; i < terrain.length - 1 && alt > 50; i++) {
+    if (lander.x >= terrain[i].x && lander.x <= terrain[i+1].x) {
+      const t = (lander.x - terrain[i].x) / (terrain[i+1].x - terrain[i].x);
+      const ty = terrain[i].y + t * (terrain[i+1].y - terrain[i].y);
+      alt = Math.max(0, ty - lander.y);
+    }
+  }
+  document.getElementById('hud-alt').textContent = 'ALT ' + Math.round(Math.min(alt, 599));
+  document.getElementById('hud-lvl').textContent = 'LEVEL ' + currentLevel;
+}
+
+/* ============================================================
+   GAME FLOW
+============================================================ */
+function initLander() {
+  lander = {
+    x: C_W * 0.2,                    // start position
+    y: C_H * 0.15,
+    vx: 0, vy: 0,
+    angle: 0,                        // radians; 0 = facing up (negative-y)
+    av: 0,                           // angular velocity
+    fuel: MAX_FUEL
+  };
+}
+
+function startLevel(level) {
+  currentLevel = level;
+  state = 'playing';
+  particles = [];
+  initLander();
+  generateTerrain(level);
+  if (!stars) generateStars();
+
+  hideAllOverlays();
+  document.getElementById('hud').classList.remove('hidden');
+  const isMobile = 'ontouchstart' in window;
+  document.getElementById('touch-controls').classList.toggle('hidden', !isMobile);
+
+  lastTime = performance.now();
+  levelStartTime = lastTime;
+}
+
+function endCrash() {
+  state = 'crashed';
+  spawnExplosion();
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('touch-controls').classList.add('hidden');
+  const spd = Math.sqrt(lander.vx*lander.vx + lander.vy*lander.vy);
+  let crashMsg = 'Impact speed: ' + spd.toFixed(1) + ' px/s';
+  if (highScores['ll_best_' + currentLevel] > 0) {
+    crashMsg += '\nBest: ' + highScores['ll_best_' + currentLevel].toLocaleString() + ' — can you beat it?';
+  }
+  document.getElementById('crash-info').textContent = crashMsg;
+  setTimeout(function() { showOverlay('crash-screen'); }, 1200);
+}
+
+function endWin() {
+  state = 'won';
+  const elapsed = (performance.now() - levelStartTime) / 1000; // seconds
+  const fuelPct = Math.max(0, lander.fuel);
+  const spd = Math.sqrt(lander.vx*lander.vx + lander.vy*lander.vy);
+  const timeBonus = Math.round(Math.max(0, (45 - elapsed)) * 8);
+  const precisionBonus = Math.max(0, Math.round((LAND_VY_MAX - spd) * 40));
+  const score = Math.max(100, Math.round(fuelPct * 25 + timeBonus + precisionBonus + 500));
+
+  const key = 'll_best_' + currentLevel;
+  const oldBest = highScores[key] || 0;
+  if (score > oldBest) {
+    highScores[key] = score;
+    try { localStorage.setItem('ll_scores', JSON.stringify(highScores)); } catch(e) {}
+  }
+
+  // Unlock next level
+  if (currentLevel >= levelUnlocked && currentLevel < LEVEL_COUNT) {
+    levelUnlocked = currentLevel + 1;
+    saveProgress();
+  }
+
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('touch-controls').classList.add('hidden');
+  document.getElementById('win-score').textContent = 'Score: ' + score.toLocaleString() + ' | Fuel: ' + Math.round(fuelPct) + '%';
+  if (score > oldBest) {
+    document.getElementById('win-best').textContent = 'NEW BEST!';
+  } else if (oldBest > 0) {
+    document.getElementById('win-best').textContent = 'Best: ' + oldBest.toLocaleString();
+  }
+
+  const nextBtn = document.getElementById('btn-next-level');
+  if (currentLevel >= LEVEL_COUNT) {
+    nextBtn.textContent = '✔ ALL COMPLETE';
+  } else {
+    nextBtn.textContent = 'NEXT LEVEL ▶';
+  }
+
+  setTimeout(function() { showOverlay('win-screen'); }, 800);
+}
+
+function nextLevelOrMenu() {
+  if (currentLevel >= LEVEL_COUNT) {
+    showMenu();
+  } else {
+    startLevel(currentLevel + 1);
+  }
+}
+
+/* ============================================================
+   SCREENS
+============================================================ */
+function hideAllOverlays() {
+  document.querySelectorAll('.overlay').forEach(function(el){ el.classList.add('hidden'); });
+}
+function showOverlay(id) {
+  hideAllOverlays();
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function showMenu() {
+  state = 'menu';
+  hideAllOverlays();
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('touch-controls').classList.add('hidden');
+  showOverlay('menu-screen');
+}
+
+function showLevelSelect() {
+  const grid = document.getElementById('level-grid');
+  grid.innerHTML = '';
+  for (let i = 1; i <= LEVEL_COUNT; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'level-btn';
+    btn.dataset.level = i;
+
+    if (i > levelUnlocked) {
+      btn.classList.add('locked');
+      btn.innerHTML = '<span class="level-num">&#x1F512;</span>';
+    } else {
+      const best = highScores['ll_best_' + i];
+      if (best >= 0) btn.classList.add('completed');
+      btn.innerHTML = '<span class="level-num">' + i + '</span>' +
+        (best > 0 ? '<span class="level-best">' + best.toLocaleString() + '</span>' : '');
+    }
+    grid.appendChild(btn);
+  }
+  hideAllOverlays();
+  showOverlay('level-screen');
+}
+
+/* ============================================================
+   STAR FIELD
+============================================================ */
+function generateStars() {
+  stars = [];
+  for (let i = 0; i < 180; i++) {
+    stars.push({
+      x: Math.random() * C_W,
+      y: Math.random() * C_H * 0.75,
+      size: 0.6 + Math.random() * 1.4,
+      brightness: 0.2 + Math.random() * 0.6
+    });
+  }
+}
+
+/* ============================================================
+   GAME LOOP
+============================================================ */
+function gameLoop(timestamp) {
+  requestAnimationFrame(gameLoop);
+  dt = Math.min((timestamp - lastTime) / 1000, 0.05); // cap at 50ms
+  lastTime = timestamp;
+
+  drawBackground();
+
+  if (state === 'playing') {
+    applyGravity();
+    applyThrust();
+    updateRotation();
+    spawnThrustParticles();
+    updatePosition();
+    updateHUD();
+  }
+
+  // Always render scene when playing or after crash/won (for visual continuity)
+  drawTerrain();
+  if (state === 'playing' || state === 'crashed') {
+    if (state !== 'crashed') drawLander();
+    else drawCrashRemnants();
+  }
+
+  updateParticles();
+  drawParticles();
+}
+
+function drawCrashRemnants() {
+  // Draw a small scorched mark on the ground where the lander crashed
+  const cx = lander.x * scale, cy = Math.min(lander.y * scale, C_H * scale);
+  ctx.beginPath();
+  ctx.arc(cx, cy, 12 * scale, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(255,96,32,0.4)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+/* ============================================================
+   INITIALIZATION
+============================================================ */
+loadProgress();
+generateStars();
+requestAnimationFrame(gameLoop);
+</script>
+
+</body>
+</html>
