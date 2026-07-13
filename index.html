@@ -2,75 +2,67 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Lunar Lander</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;overflow:hidden;background:#08080e;color:#ccc;font-family:'Courier New',monospace;touch-action:none;user-select:none;-webkit-user-select:none}
-#game-canvas{display:block;width:100%;height:100%}
+:root {
+  --bg: #0a0a12;
+  --text-primary: #ffffff;
+  --text-secondary: #e0e0e0;
+  --accent-gold: #f0c040;
+  --success-green: #32cd32;
+  --danger-red: #ff4500;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text-primary); font-family: 'Courier New', monospace; touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+#game-canvas { display: block; width: 100%; height: 100%; }
 
 /* Overlays */
-.overlay{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,8,14,.92);z-index:10;padding:16px}
-.hidden{display:none!important}
+.overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(10, 10, 18, 0.95); z-index: 10; padding: 20px; }
+.hidden { display: none !important; }
 
-h1{font-size:min(7vw,3rem);color:#e8e8e8;text-shadow:0 0 20px rgba(255,255,255,.15);letter-spacing:.08em;margin-bottom:.1em;text-align:center;line-height:1.1}
-h2{font-size:min(4vw,1.6rem);color:#999;font-weight:normal;letter-spacing:.05em;margin-bottom:1.2em;text-align:center}
-.subtitle{color:#666;font-size:clamp(.7rem,2vw,.95rem);margin-bottom:2em;text-align:center}
+h1 { font-size: clamp(2rem, 8vw, 3.5rem); color: #fff; text-shadow: 0 0 20px rgba(240, 192, 64, 0.3); letter-spacing: 0.1em; margin-bottom: 0.2em; text-align: center; line-height: 1.1; }
+h2 { font-size: clamp(1.5rem, 5vw, 2.2rem); color: var(--text-secondary); margin-bottom: 1em; letter-spacing: 0.08em; text-align: center; }
+
+.subtitle { color: #7a7a9a; font-size: clamp(0.85rem, 2.5vw, 1.1rem); margin-bottom: 2em; text-align: center; }
 
 /* Buttons */
-.btn{background:none;border:1.8px solid #3a3a4a;color:#ccc;padding:14px 32px;font-family:'Courier New',monospace;font-size:min(3.5vw,1.05rem);cursor:pointer;border-radius:6px;transition:border-color .15s,color .15s;text-transform:uppercase;letter-spacing:.08em;min-width:120px;outline:none}
-.btn:hover,.btn:focus{border-color:#7a7a9a;color:#fff}
-.btn:active{background:rgba(255,255,255,.04)}
-.btn-primary{border-color:#f0c040;color:#f0c040;font-weight:bold}
-.btn-primary:hover,.btn-primary:focus{background:rgba(240,192,64,.08);color:#ffd86e;border-color:#ffd86e}
+.btn { background: transparent; border: 2px solid var(--accent-gold); color: var(--accent-gold); padding: 16px 36px; font-family: inherit; font-size: clamp(0.9rem, 3vw, 1.15rem); cursor: pointer; border-radius: 8px; letter-spacing: 0.08em; text-transform: uppercase; min-width: 48px; min-height: 48px; transition: background .12s, color .12s; }
+.btn:hover, .btn:focus { background: rgba(240, 192, 64, 0.1); }
+.btn-primary { background: var(--accent-gold); color: var(--bg); font-weight: bold; border-color: var(--accent-gold); }
+.btn-primary:hover { background: #ffd86e; border-color: #ffd86e; }
 
 /* Menu */
-#menu-screen h1{margin-bottom:.05em}
-.menu-btns{display:flex;flex-direction:column;gap:12px;align-items:center;margin-top:.3em;width:100%;max-width:340px}
+.menu-btns { display: flex; flex-direction: column; gap: 12px; align-items: center; width: 100%; max-width: 340px; margin-top: 0.5em; }
 
-/* Level Select */
-.level-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;width:100%;max-width:420px;padding:8px}
-.level-btn{width:100%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:none;border:1.8px solid #3a3a4a;color:#7a7a9a;font-family:'Courier New',monospace;border-radius:8px;cursor:pointer;padding:4px 2px;text-align:center;line-height:1.2;transition:border-color .15s,color .15s}
-.level-btn:not(.locked):hover{border-color:#7a7a9a;color:#fff}
-.level-btn.completed{border-color:#3a8a3a;color:#4c4;font-weight:bold}
-.level-btn.locked{opacity:.35;cursor:default;border-color:#222}
-.level-num{font-size:min(4vw,1.4rem)}
-.level-best{font-size:clamp(.5rem,1.5vw,.7rem);color:#666;margin-top:1px}
+/* HUD */
+#hud { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-size: clamp(0.7rem, 2.5vw, 0.9rem); color: var(--text-secondary); z-index: 5; background: linear-gradient(rgba(10, 10, 18, 0.85), transparent); }
+#hud-right { text-align: right; }
 
-/* Game HUD */
-#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:8px 14px;font-size:min(2.2vw,.75rem);color:#999;z-index:5;background:linear-gradient(rgba(8,8,14,.8),transparent)}
-#hud-right{text-align:right}
-
-/* Abort button */
-.abort-btn{width:36px!important;height:36px!important;border-radius:50%!important;font-size:min(2.5vw,.9rem)!important;padding:0!important;line-height:1!important;display:flex;align-items:center;justify-content:center;background:rgba(204,68,68,.08)!important;border-color:#c44!important;color:#c44!important}
-.abort-btn:hover{background:rgba(204,68,68,.18)!important;border-color:#e55!important;color:#f66!important}
+.abort-btn { width: 44px !important; height: 44px !important; border-radius: 50% !important; font-size: clamp(0.9rem, 3vw, 1.1rem) !important; padding: 0 !important; line-height: 1 !important; display: flex; align-items: center; justify-content: center; background: rgba(255, 69, 0, 0.15) !important; border-color: var(--danger-red) !important; color: var(--danger-red) !important; }
+.abort-btn:hover { background: rgba(255, 69, 0, 0.3) !important; }
 
 /* Touch Controls */
-#touch-controls{position:fixed;bottom:max(6%,12px);left:0;right:0;display:flex;justify-content:center;gap:min(6vw,48px);z-index:5;padding:0 12px}
-.ctrl-btn{width:min(22vw,96px);height:min(22vw,96px);border-radius:50%;background:rgba(255,255,255,.04);border:2px solid #3a3a4a;color:#aaa;font-size:min(2.8vw,.95rem);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;-webkit-tap-highlight-color:transparent}
-.ctrl-btn.active{background:rgba(240,192,64,.1);border-color:#f0c040;color:#f0c040}
-#btn-thrust{font-size:min(3.5vw,1.2rem)}
+#touch-controls { position: fixed; bottom: max(8%, 16px); left: 0; right: 0; display: flex; justify-content: center; gap: min(8vw, 56px); z-index: 5; padding: 0 24px; }
+.ctrl-btn { width: clamp(60px, 18vw, 80px); height: clamp(60px, 18vw, 80px); border-radius: 50%; background: rgba(255, 255, 255, 0.06); border: 2px solid #4a4a5c; color: var(--text-primary); font-size: clamp(1.3rem, 4vw, 1.8rem); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; line-height: 1; }
+.ctrl-btn.active { background: rgba(240, 192, 64, 0.15); border-color: var(--accent-gold); color: var(--accent-gold); }
 
-/* Result screens */
-.result-title{font-size:clamp(1.8rem,6vw,2.8rem);margin-bottom:.2em;text-align:center}
-.result-title.win{color:#4c4;text-shadow:0 0 20px rgba(68,204,68,.2)}
-.result-title.fail{color:#c44;text-shadow:0 0 20px rgba(204,68,68,.15)}
-.result-score{font-size:min(3vw,1.1rem);margin-bottom:.4em;color:#e8e8e8}
-.result-best{font-size:clamp(.75rem,2.2vw,.9rem);color:#f0c040;margin-bottom:1.6em}
+/* Level Select Grid */
+.level-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 10px; width: 100%; max-width: 400px; padding: 8px; }
+.level-btn { aspect-ratio: 1; border-radius: 50%; background: rgba(255, 255, 255, 0.05); border: 2px solid #4a4a5c; color: var(--text-primary); font-size: clamp(1rem, 3vw, 1.3rem); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color .12s; }
+.level-btn:not(.locked):hover { border-color: var(--accent-gold); color: var(--accent-gold); }
+.level-btn.completed { border-color: #3a8a3a; color: var(--success-green); font-weight: bold; }
+.level-btn.locked { opacity: 0.35; cursor: default; border-color: #2a2a3a; }
 
-/* Desktop controls hint */
-.desktop-hint{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);font-size:clamp(.55rem,1.5vw,.72rem);color:#3a3a4a;z-index:5;display:none}
-@media(min-width:769px){.desktop-hint{display:block}}
+/* Score Display */
+.score-display { font-size: clamp(1.6rem, 6vw, 2.4rem); color: var(--accent-gold); margin-bottom: 0.4em; text-align: center; }
+.result-text { font-size: clamp(0.85rem, 2.5vw, 1rem); color: var(--text-secondary); margin-bottom: 1.6em; text-align: center; line-height: 1.6; }
 
-/* In-game controls hint */
-#game-hint{position:fixed;bottom:max(18%,36px);left:50%;transform:translateX(-50%);font-size:clamp(.6rem,1.8vw,.82rem);color:#7a7a9a;z-index:4;text-align:center;background:rgba(8,8,14,.7);padding:6px 16px;border-radius:20px;pointer-events:none}
-
-/* Responsive */
-@media(max-height:500px){
-  .ctrl-btn{width:min(18vw,72px);height:min(18vw,72px)}
-  #touch-controls{bottom:4px;gap:24px}
-}
+/* Animations */
+@keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
 </style>
 </head>
 <body>
@@ -79,9 +71,7 @@ h2{font-size:min(4vw,1.6rem);color:#999;font-weight:normal;letter-spacing:.05em;
 
 <!-- HUD -->
 <div id="hud" class="hidden">
-  <div id="hud-left">FUEL <span id="hud-fuel">100</span>% | SPD <span id="hud-spd">0.0</span></div>
-  <div id="hud-right"><div id="hud-alt">ALT 0</div><div id="hud-lvl">LEVEL 1</div></div>
-  <!-- Abort button (top-right corner of HUD) -->
+  <div>FUEL <span id="hud-fuel">45</span>% | SPD <span id="hud-spd">0.0</span></div>
   <button id="btn-abort" class="ctrl-btn abort-btn" title="Abort level (Esc)">X</button>
 </div>
 
@@ -92,42 +82,46 @@ h2{font-size:min(4vw,1.6rem);color:#999;font-weight:normal;letter-spacing:.05em;
   <button id="btn-right" class="ctrl-btn">&#8594;</button>
 </div>
 
-<!-- Menu Screen -->
+<!-- Main Menu -->
 <div id="menu-screen" class="overlay">
-  <h1>LUNAR<br><span style="color:#f0c040">LANDER</span></h1>
-  <p class="subtitle">A Lunar Lander Puzzle Game</p>
+  <h1>LUNAR<br><span style="color:var(--accent-gold)">LANDER</span></h1>
+  <p class="subtitle">A Mobile Puzzle Game</p>
   <div class="menu-btns">
     <button id="btn-start" class="btn btn-primary">&#9654; PLAY</button>
     <button id="btn-level-select" class="btn">LEVELS</button>
   </div>
-  <p class="desktop-hint">W = thrust &nbsp; A / D = rotate &nbsp; Esc = abort</p>
+  <p style="color:#4a4a5c;font-size:clamp(0.7rem,2vw,0.85rem);margin-top:1.5em;text-align:center">Tap buttons to fly &nbsp;|&nbsp; Tap X to abort</p>
 </div>
 
-<!-- In-game controls hint (desktop only, fades out after 6s) -->
-<div id="game-hint" class="hidden">W/A/D or arrow keys to fly &nbsp;|&nbsp; Esc to abort</div>
-
-<!-- Level Select Screen -->
+<!-- Level Select -->
 <div id="level-screen" class="overlay hidden">
   <h2>SELECT LEVEL</h2>
   <div id="level-grid" class="level-grid"></div>
-  <button id="btn-menu-back" class="btn" style="margin-top:1.2em">&#8592; BACK</button>
-</div>
-
-<!-- Game Over Screen -->
-<div id="crash-screen" class="overlay hidden">
-  <h2 class="result-title fail">&#x2620; CRASHED</h2>
-  <p class="result-score" id="crash-info"></p>
-  <button id="btn-retry" class="btn btn-primary">RETRY</button>
-  <button id="btn-crash-menu" class="btn" style="margin-top:10px">&#8592; MENU</button>
+  <button id="btn-menu-back" class="btn" style="margin-top:1.5em">&#8592; BACK</button>
 </div>
 
 <!-- Win Screen -->
 <div id="win-screen" class="overlay hidden">
-  <h2 class="result-title win">&#x2714; SAFE LANDING</h2>
-  <p class="result-score" id="win-score"></p>
-  <p class="result-best" id="win-best"></p>
+  <h2 style="color:#3c3">&#x2714; SAFE LANDING</h2>
+  <p class="score-display" id="win-score"></p>
+  <p class="result-text" id="win-details"></p>
   <button id="btn-next-level" class="btn btn-primary">NEXT LEVEL &#8594;</button>
   <button id="btn-win-menu" class="btn" style="margin-top:10px">&#8592; MENU</button>
+</div>
+
+<!-- Fail Screen -->
+<div id="crash-screen" class="overlay hidden">
+  <h2 style="color:var(--danger-red)">&#x2620; CRASHED</h2>
+  <p class="result-text" id="crash-info"></p>
+  <button id="btn-retry" class="btn btn-primary">RETRY</button>
+  <button id="btn-crash-menu" class="btn" style="margin-top:10px">&#8592; MENU</button>
+</div>
+
+<!-- Complete Screen -->
+<div id="complete-screen" class="overlay hidden">
+  <h1>CONGRATULATIONS!</h1>
+  <p class="subtitle" style="max-width:360px;line-height:1.5;margin-bottom:2em;text-align:center">You've completed all 10 levels and become a Lunar Lander champion.</p>
+  <button id="btn-play-again" class="btn btn-primary">PLAY AGAIN</button>
 </div>
 
 <script>
@@ -136,30 +130,29 @@ h2{font-size:min(4vw,1.6rem);color:#999;font-weight:normal;letter-spacing:.05em;
 /* ============================================================
    CONSTANTS
 ============================================================ */
-const C_W = 400, C_H = 600;                       // internal resolution
-const GROUND_Y = C_H - 30;                         // ground y in game coords
-const GRAVITY = 18;                                // px/s²
-const THRUST_POWER = 26;                           // px/s² when thrusting
-const MAX_THRUST_FORCE = 7.5;                      // max combined force
-const ROTATE_SPEED = 2.4;                          // rad/s rotation rate
-const ANGULAR_DRAG = 0.93;                         // per-frame angular damping
-const LAND_VY_MAX = 6;                            // safe vertical speed (px/s)
-const LAND_ANGLE_MAX = 15 * Math.PI / 180;       // max tilt for landing
-const MAX_FUEL = 100;                              // starting fuel units
-const LEVEL_COUNT = 12;
+const C_W = 400, C_H = 600;                          // internal resolution
+const GROUND_Y = C_H - 30;                           // ground y in game coords
+const GRAVITY = 18;                                  // px/s² gravity
+const THRUST_POWER = 26;                             // max thrust force (capped by MAX_THRUST_FORCE)
+const MAX_THRUST_FORCE = 7.5;                        // actual max thrust per frame (can't hover!)
+const ROTATE_SPEED = 2.4;                            // rad/s rotation rate
+const ANGULAR_DRAG = 0.93;                           // angular damping per frame
+const LAND_VY_MAX = 6;                               // safe vertical speed for landing
+const MAX_FUEL = 45;                                 // starting fuel (tight budget)
+const LEVEL_COUNT = 10;
 
 /* ============================================================
    STATE
 ============================================================ */
-let state = 'menu';                               // menu | playing | crashed | won
+let state = 'menu';                                  // menu | playing | crashed | won | complete
 let currentLevel = 1;
 let lander, terrain, landingPad, stars;
 let particles = [];
 let input = { thrust: false, left: false, right: false };
 let lastTime = 0, dt = 0;
-let levelStartTime = 0;                         // timestamp when current level started (ms)
-let levelUnlocked = 1;                            // highest unlocked level
-let highScores = {};                              // per-level best scores
+let levelStartTime = 0;
+let levelUnlocked = 1;
+let highScores = {};
 
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
@@ -174,23 +167,41 @@ resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 /* ============================================================
-   LOCAL STORAGE
+   LOCAL STORAGE (versioned keys)
 ============================================================ */
+const STORAGE_VERSION = "1.0";
 function saveProgress() {
-  try { localStorage.setItem('ll_progress', JSON.stringify({ u: levelUnlocked })); } catch(e) {}
+  try { localStorage.setItem('ll_progress_v' + STORAGE_VERSION, JSON.stringify({ u: levelUnlocked })); } catch(e) {}
 }
 function loadProgress() {
   try {
-    const d = JSON.parse(localStorage.getItem('ll_progress'));
+    const d = JSON.parse(localStorage.getItem('ll_progress_v' + STORAGE_VERSION));
     if (d && typeof d.u === 'number') levelUnlocked = Math.min(d.u, LEVEL_COUNT);
     const s = JSON.parse(localStorage.getItem('ll_scores'));
     if (s) highScores = s;
-  } catch(e) {}
+  } catch(e) { /* first time or corrupted — use defaults */ }
 }
 
 /* ============================================================
-   INPUT — keyboard + touch
+   INPUT — Pointer events (mobile) + keyboard (debug)
 ============================================================ */
+function attachControlButton(id, inputKey) {
+  const btn = document.getElementById(id);
+  function activate(e) { e.preventDefault(); input[inputKey] = true; btn.classList.add('active'); }
+  function deactivate() { input[inputKey] = false; btn.classList.remove('active'); }
+  btn.addEventListener('pointerdown', activate);
+  btn.addEventListener('pointerup', deactivate);
+  btn.addEventListener('pointercancel', deactivate);
+  btn.addEventListener('pointerleave', deactivate);
+}
+attachControlButton('btn-thrust', 'thrust');
+attachControlButton('btn-left', 'left');
+attachControlButton('btn-right', 'right');
+
+// Prevent context menu on long-press
+document.getElementById('touch-controls').addEventListener('contextmenu', e => { e.preventDefault(); });
+
+// Keyboard input (for testing)
 document.addEventListener('keydown', function(e) {
   switch(e.key.toLowerCase()) {
     case 'w': case 'arrowup': input.thrust = true; e.preventDefault(); break;
@@ -207,43 +218,60 @@ document.addEventListener('keyup', function(e) {
   }
 });
 
-// Touch buttons — preventDefault inside handlers so scrolling doesn't steal focus
-document.addEventListener('touchstart', function(e) {
-  for (const el of e.changedTouches) {
-    const t = document.elementFromPoint(el.clientX, el.clientY);
-    if (t && t.id === 'btn-thrust') { input.thrust = true; t.classList.add('active'); e.preventDefault(); }
-    else if (t && t.id === 'btn-left')  { input.left = true; t.classList.add('active'); e.preventDefault(); }
-    else if (t && t.id === 'btn-right') { input.right = true; t.classList.add('active'); e.preventDefault(); }
-  }
-}, { passive: false });
-
-document.addEventListener('touchend', function(e) {
-  for (const el of e.changedTouches) {
-    const t = document.elementFromPoint(el.clientX, el.clientY);
-    if (!t || !t.classList.contains('ctrl-btn')) continue;
-    t.classList.remove('active');
-    switch(t.id) {
-      case 'btn-thrust': input.thrust = false; break;
-      case 'btn-left':  input.left = false; break;
-      case 'btn-right': input.right = false; break;
-    }
-  }
-}, { passive: true });
-
-// Menu buttons (click handles both mouse and touch)
+// Menu buttons
 document.getElementById('btn-start').addEventListener('click', function() { startLevel(1); });
 document.getElementById('btn-level-select').addEventListener('click', showLevelSelect);
 document.getElementById('btn-menu-back').addEventListener('click', showMenu);
 document.getElementById('btn-retry').addEventListener('click', function() { startLevel(currentLevel); });
 document.getElementById('btn-crash-menu').addEventListener('click', showMenu);
-document.getElementById('btn-next-level').addEventListener('click', nextLevelOrMenu);
 document.getElementById('btn-win-menu').addEventListener('click', showMenu);
+document.getElementById('btn-play-again').addEventListener('click', function() { state = 'menu'; showMenu(); });
 
-// Delegated button handler for level grid
+// Delegated handler for level grid
 document.getElementById('level-grid').addEventListener('click', function(e) {
   const b = e.target.closest('.level-btn');
   if (b && !b.classList.contains('locked')) startLevel(parseInt(b.dataset.level));
 });
+
+/* ============================================================
+   LEVEL DEFINITIONS (10 progressive levels)
+============================================================ */
+function generateTerrain(level) {
+  const d = Math.min((level - 1) / (LEVEL_COUNT - 1), 1); // difficulty 0..1
+
+  terrain = [];
+  const padX = C_W * (0.25 + d * 0.35);       // pad moves toward center with difficulty
+  const padW = Math.max(40, 78 - d * 28);      // pad narrows from 78 to ~50
+
+  for (let x = 0; x <= C_W; x += 4) {
+    let y = GROUND_Y;
+    if (x < padX || x > padX + padW) {
+      const n1 = Math.sin(x * 0.012 + level * 1.7) * (35 + d * 60);
+      const n2 = Math.sin(x * 0.035 + level * 3.1) * (18 + d * 30);
+      const n3 = Math.sin(x * 0.08 + level * 5.7) * (5 + d * 14);
+      y += n1 + n2 + n3;
+    }
+    terrain.push({ x: x, y: y });
+  }
+
+  // Find the actual flat landing pad segment from generated terrain
+  let bestStart = -1, bestLen = 0, startIdx = 0;
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const dy = Math.abs(terrain[i+1].y - terrain[i].y);
+    if (dy < 4) {
+      if (i === 0 || Math.abs(terrain[i].y - terrain[Math.max(0, i-1)].y) >= 4) startIdx = i;
+      const len = i - startIdx + 1;
+      if (len > bestLen) { bestLen = len; bestStart = startIdx; }
+    } else { startIdx = i + 1; }
+  }
+
+  landingPad = bestLen >= 3 ? {
+    x0: terrain[bestStart].x,
+    y0: terrain[bestStart].y,
+    x1: terrain[Math.min(bestStart + bestLen - 1, terrain.length - 1)].x,
+    y1: terrain[Math.min(bestStart + bestLen - 1, terrain.length - 1)].y
+  } : null;
+}
 
 /* ============================================================
    PHYSICS
@@ -255,11 +283,13 @@ function applyGravity() {
 function applyThrust() {
   const f = input.thrust && lander.fuel > 0 ? Math.min(THRUST_POWER, MAX_THRUST_FORCE) : 0;
   if (f <= 0) return;
-  const ca = Math.cos(-lander.angle), sa = Math.sin(-lander.angle);
-  lander.vx += f * ca * dt;
-  lander.vy += f * sa * dt;
-  // Consume fuel proportionally to force applied
-  lander.fuel -= (f / THRUST_POWER) * 12 * dt;
+  // Thrust direction: engine at bottom fires opposite to facing direction.
+  // At angle=0 (facing up), thrust pushes DOWN (+y in screen coords).
+  const a = lander.angle;
+  lander.vx += f * Math.sin(a) * dt;
+  lander.vy += f * Math.cos(a) * dt;
+  // Consume fuel: ~4.6 units/s at full throttle
+  lander.fuel -= (f / THRUST_POWER) * 16 * dt;
 }
 
 function updateRotation() {
@@ -268,129 +298,81 @@ function updateRotation() {
   if (input.right) av += ROTATE_SPEED;
   lander.av += av * dt;
   lander.angle += lander.av * dt;
-  lander.av *= Math.pow(ANGULAR_DRAG, dt * 60);   // delta-time-corrected drag
+  lander.av *= Math.pow(ANGULAR_DRAG, dt * 60);
 }
 
 function updatePosition() {
   const newX = Math.max(20, Math.min(C_W - 20, lander.x + lander.vx * dt));
-  const newY = Math.max(-10, lander.y + lander.vy * dt);   // allow slight overshoot above top
+  const newY = Math.max(-10, lander.y + lander.vy * dt);
 
-  // Update position first, then check collision/landing against new state
+  // Clamp horizontal to screen bounds with bounce
+  const bouncedX = (newX !== lander.x + lander.vx * dt);
+  if (bouncedX) { lander.vx *= -0.5; }
+
   lander.x = newX;
   lander.y = newY;
 
-  // Landing check first — if both feet are on the ground, it's a landing (even if
-  // the center is slightly below the terrain due to slope/tilt).
-  let landed = isNewLanded();
-
-  // Collision detection: center below terrain surface AND not already grounded → crash
-  let crashed = !landed;
-  if (crashed) {
-    for (let i = 0; i < terrain.length - 1; i++) {
-      const seg = terrain[i];
-      if (newX >= seg.x && newX <= terrain[i+1].x) {
-        const t = (newX - seg.x) / (terrain[i+1].x - seg.x);
-        const ty = seg.y + t * (terrain[i+1].y - seg.y);
-        if (newY >= ty) { crashed = true; break; }
-      }
+  // Collision check FIRST — center inside terrain is always a crash, regardless of feet
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const seg = terrain[i];
+    if (lander.x >= seg.x && lander.x <= terrain[i+1].x) {
+      const t = (lander.x - seg.x) / (terrain[i+1].x - seg.x);
+      const ty = seg.y + t * (terrain[i+1].y - seg.y);
+      if (lander.y >= ty) { endCrash(); return; }
     }
   }
 
-  if (crashed) { endCrash(); return; }
-  if (landed) { endWin(); }
+  // Landing check — feet must have terrain support AND speed/angle must be safe
+  let landed = isNewLanded();
+  if (landed) {
+    const spd = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
+    if (spd <= LAND_VY_MAX && Math.abs(lander.angle) < LAND_ANGLE_MAX) {
+      endWin();
+    } else {
+      endCrash(); // Too fast or tilted — crash, not landing
+    }
+  }
 }
 
-// Returns true only when BOTH bottom corners are at or near the terrain surface,
-// and there is actual terrain between/under them to support the lander.
+// Strict landing detection — no false positives from inRange tolerance
 function isNewLanded() {
   const b1 = getBottomLeft(), b2 = getBottomRight();
-
   let groundedCount = 0;
-  for (let i = 0; i < terrain.length - 1; i++) {
+
+  for (let i = 0; i < terrain.length - 1 && groundedCount < 2; i++) {
     const seg = terrain[i];
-    if (!inRange(b1.x, seg.x, terrain[i+1].x) && !inRange(b2.x, seg.x, terrain[i+1].x)) continue;
+    // Strict bounds check — no +/-1 tolerance here
+    if (!inRangeStrict(b1.x, seg.x, terrain[i+1].x) && !inRangeStrict(b2.x, seg.x, terrain[i+1].x)) continue;
 
     for (const v of [b1, b2]) {
-      if (!inRange(v.x, seg.x, terrain[i+1].x)) continue;
+      if (!inRangeStrict(v.x, seg.x, terrain[i+1].x)) continue;
       const t = (v.x - seg.x) / (terrain[i+1].x - seg.x);
+      // Only accept t in valid range to prevent extrapolation artifacts
+      if (t < 0 || t > 1) continue;
       const surfaceY = seg.y + t * (terrain[i+1].y - seg.y);
-      if (v.y >= surfaceY - 2.0) groundedCount++;
+      // Foot must be at or below surface (with small tolerance for visual alignment)
+      if (v.y >= surfaceY - 2.5) groundedCount++;
     }
   }
 
   return groundedCount >= 2;
 }
 
-// Foot positions in the lander's local frame, then rotated into world space
-const FOOT_LX = -9, FOOT_RX = 9, FOOT_DY = 15;  // left/right offset and depth from center
+function inRangeStrict(v, lo, hi) { return v >= lo && v <= hi; }
 
-function getBottomLeft() { return rotatePoint(lander.angle, FOOT_LX, FOOT_DY); }
+// Foot positions rotated into world space
+const FOOT_LX = -9, FOOT_RX = 9, FOOT_DY = 15;
+
+function getBottomLeft()  { return rotatePoint(lander.angle, FOOT_LX, FOOT_DY); }
 function getBottomRight() { return rotatePoint(lander.angle, FOOT_RX, FOOT_DY); }
-function getTop()          { return rotatePoint(lander.angle, 0, -12); }
+function getTop()         { return rotatePoint(lander.angle, 0, -12); }
 
-// Rotate a local point (lx, ly) around the lander center by angle (radians).
-// Positive angle rotates clockwise in screen space.
 function rotatePoint(angle, lx, ly) {
   const cosA = Math.cos(angle), sinA = Math.sin(angle);
   return {
     x: lander.x + lx * cosA - ly * sinA,
     y: lander.y + lx * sinA + ly * cosA
   };
-}
-
-function inRange(v, lo, hi) { return v >= lo - 1 && v <= hi + 1; }
-
-/* ============================================================
-   COLLISION DETECTION HELPERS
-============================================================ */
-function lineIntersect(ax,ay,bx,by,cx,cy,dx,dy) {
-  const denom = (bx-ax)*(dy-cy)-(ay-by)*(dx-cx);
-  if (Math.abs(denom) < 1e-8) return null;
-  const t = ((cx-ax)*(dy-cy)-(cy-ay)*(dx-cx)) / denom;
-  const u = ((cx-ax)*(by-ay)-(cy-ay)*(bx-ax)) / denom;
-  if (t >= -0.5 && t <= terrain.length) return { x: ax+t*(bx-ax), y: ay+t*(by-ay) };
-  return null;
-}
-
-/* ============================================================
-   TERRAIN GENERATION
-============================================================ */
-function generateTerrain(level) {
-  const d = Math.min((level - 1) / (LEVEL_COUNT - 1), 1);
-  terrain = [];
-  const padX = C_W * (0.25 + d * 0.35);       // pad moves toward center with difficulty
-  const padW = Math.max(42, 78 - d * 22);      // pad narrows
-
-  for (let x = 0; x <= C_W; x += 4) {
-    let y = GROUND_Y;
-    if (x < padX || x > padX + padW) {
-      const n1 = Math.sin(x * 0.012 + level * 1.7) * (35 + d*60);
-      const n2 = Math.sin(x * 0.035 + level * 3.1) * (18 + d*30);
-      const n3 = Math.sin(x * 0.08 + level * 5.7) * (5 + d*14);
-      y += n1 + n2 + n3;
-    }
-    terrain.push({ x: x, y: y });
-  }
-
-  // Determine landing pad range from actual flat segment in the generated terrain
-  let bestStart = -1, bestLen = 0, startIdx = 0;
-  for (let i = 0; i < terrain.length - 1; i++) {
-    const dy = Math.abs(terrain[i+1].y - terrain[i].y);
-    if (dy < 4) {
-      if (i === 0 || Math.abs(terrain[i].y - terrain[Math.max(0,i-1)].y) >= 4) startIdx = i;
-      const len = i - startIdx + 1;
-      if (len > bestLen) { bestLen = len; bestStart = startIdx; }
-    } else {
-      startIdx = i + 1;
-    }
-  }
-
-  landingPad = bestLen >= 3 ? {
-    x0: terrain[bestStart].x,
-    y0: terrain[bestStart].y,
-    x1: terrain[Math.min(bestStart + bestLen - 1, terrain.length-1)].x,
-    y1: terrain[Math.min(bestStart + bestLen - 1, terrain.length-1)].y
-  } : null;
 }
 
 /* ============================================================
@@ -403,11 +385,11 @@ function spawnThrustParticles() {
     particles.push({
       x: lander.x + Math.sin(a) * 18,
       y: lander.y + Math.cos(a) * 18,
-      vx: -Math.sin(a) * (50 + Math.random()*40) + lander.vx*0.3,
-      vy: -Math.cos(a) * (50 + Math.random()*40) + lander.vy*0.3 + 20,
-      life: 0.3 + Math.random()*0.2,
-      maxLife: 0.3 + Math.random()*0.2,
-      size: 2.5 + Math.random()*2,
+      vx: -Math.sin(a) * (50 + Math.random() * 40) + lander.vx * 0.3,
+      vy: -Math.cos(a) * (50 + Math.random() * 40) + lander.vy * 0.3 + 20,
+      life: 0.3 + Math.random() * 0.2,
+      maxLife: 0.3 + Math.random() * 0.2,
+      size: 2.5 + Math.random() * 2,
       color: Math.random() > 0.4 ? '#f0c040' : '#ff6020'
     });
   }
@@ -421,10 +403,10 @@ function spawnExplosion() {
       x: lander.x, y: lander.y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed - 30,
-      life: 0.6 + Math.random()*0.8,
-      maxLife: 0.6 + Math.random()*0.8,
-      size: 1.5 + Math.random()*4,
-      color: ['#f0c040','#ff6020','#ff3010','#fff'][Math.floor(Math.random()*4)]
+      life: 0.6 + Math.random() * 0.8,
+      maxLife: 0.6 + Math.random() * 0.8,
+      size: 1.5 + Math.random() * 4,
+      color: ['#f0c040', '#ff6020', '#ff3010', '#fff'][Math.floor(Math.random() * 4)]
     });
   }
 }
@@ -444,15 +426,17 @@ function updateParticles() {
    RENDERING
 ============================================================ */
 function drawBackground() {
-  ctx.fillStyle = '#08080e';
+  ctx.fillStyle = '#0a0a12';
   ctx.fillRect(0, 0, C_W, C_H);
-  // Stars
+  // Stars (twinkling)
+  const t = performance.now() / 1000;
   for (const s of stars) {
     const sx = s.x * scale;
     const sy = s.y * scale;
-    if (sx < -5 || sx > canvas.width+5 || sy < -5 || sy > canvas.height+5) continue;
-    ctx.fillStyle = 'rgba(200,210,230,' + (0.2 + s.brightness*0.45) + ')';
-    ctx.fillRect(sx - 0.5, sy - 0.5, s.size * scale, s.size * scale);
+    if (sx < -5 || sx > canvas.width + 5 || sy < -5 || sy > canvas.height + 5) continue;
+    const brightness = s.brightness * (0.6 + 0.4 * Math.sin(t * s.twinkleSpeed));
+    ctx.fillStyle = 'rgba(200, 210, 230,' + brightness + ')';
+    ctx.fillRect(sx - s.size * scale / 2, sy - s.size * scale / 2, s.size * scale, s.size * scale);
   }
 }
 
@@ -463,7 +447,7 @@ function drawTerrain() {
     const x = terrain[i].x * scale, y = terrain[i].y * scale;
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
-  ctx.lineTo(terrain[terrain.length-1].x * scale, C_H * scale);
+  ctx.lineTo(terrain[terrain.length - 1].x * scale, C_H * scale);
   ctx.lineTo(terrain[0].x * scale, C_H * scale);
   ctx.closePath();
   ctx.fillStyle = '#1a1a26';
@@ -473,7 +457,7 @@ function drawTerrain() {
   for (let i = 0; i < terrain.length - 1; i++) {
     const s = terrain[i], e = terrain[i+1];
     if (landingPad && s.x >= landingPad.x0 && e.x <= landingPad.x1) {
-      ctx.strokeStyle = '#3a8a3a';
+      ctx.strokeStyle = '#32cd32';
       ctx.lineWidth = 2.5;
     } else {
       ctx.strokeStyle = '#4a4a5c';
@@ -485,29 +469,41 @@ function drawTerrain() {
     ctx.stroke();
   }
 
-  // Landing pad markers (small triangles on each side)
+  // Landing pad markers (triangles)
   if (landingPad) {
     const px = landingPad.x0 * scale;
     const py = landingPad.y0 * scale;
     const pw = (landingPad.x1 - landingPad.x0) * scale;
-    drawTriangle(px, py, 7*scale, true);
-    drawTriangle(px + pw, py, 7*scale, false);
+    drawTriangle(px, py, 7 * scale, true);
+    drawTriangle(px + pw, py, 7 * scale, false);
+  }
+
+  // Pad width indicator bar
+  if (landingPad) {
+    ctx.strokeStyle = 'rgba(50, 205, 50, 0.4)';
+    ctx.lineWidth = 3;
+    const pw = (landingPad.x1 - landingPad.x0) * scale;
+    const px = landingPad.x0 * scale + pw / 2;
+    ctx.beginPath();
+    ctx.moveTo(px - pw / 2, (landingPad.y0 + 6) * scale);
+    ctx.lineTo(px + pw / 2, (landingPad.y0 + 6) * scale);
+    ctx.stroke();
   }
 }
 
 function drawTriangle(x, y, s, left) {
   ctx.beginPath();
   if (left) {
-    ctx.moveTo(x - s*0.5, y);
-    ctx.lineTo(x + s*0.5, y);
+    ctx.moveTo(x - s * 0.5, y);
+    ctx.lineTo(x + s * 0.5, y);
     ctx.lineTo(x, y - s);
   } else {
-    ctx.moveTo(x + s*0.5, y);
-    ctx.lineTo(x - s*0.5, y);
+    ctx.moveTo(x + s * 0.5, y);
+    ctx.lineTo(x - s * 0.5, y);
     ctx.lineTo(x, y - s);
   }
   ctx.closePath();
-  ctx.fillStyle = '#3a8a3a';
+  ctx.fillStyle = '#32cd32';
   ctx.fill();
 }
 
@@ -518,58 +514,58 @@ function drawLander() {
   ctx.translate(cx, cy);
   ctx.rotate(lander.angle);
 
-  // Body (top wider than bottom — classic lander shape)
+  // Body (classic Lander shape — top wider than bottom)
   ctx.beginPath();
-  ctx.moveTo(-10*s, -8*s);
-  ctx.lineTo(10*s, -8*s);
-  ctx.lineTo(9*s, 6*s);
-  ctx.lineTo(-9*s, 6*s);
+  ctx.moveTo(-10 * s, -8 * s);
+  ctx.lineTo(10 * s, -8 * s);
+  ctx.lineTo(9 * s, 6 * s);
+  ctx.lineTo(-9 * s, 6 * s);
   ctx.closePath();
   ctx.strokeStyle = '#d0d0d0';
   ctx.lineWidth = 2 * s;
   ctx.stroke();
 
-  // Window
+  // Cockpit window
   ctx.beginPath();
-  ctx.arc(0, -3*s, 3.5*s, 0, Math.PI*2);
+  ctx.arc(0, -3 * s, 3.5 * s, 0, Math.PI * 2);
   ctx.strokeStyle = '#f0c040';
   ctx.lineWidth = 1.5 * s;
   ctx.stroke();
 
   // Antenna
   ctx.beginPath();
-  ctx.moveTo(0, -8*s);
-  ctx.lineTo(0, -13*s);
+  ctx.moveTo(0, -8 * s);
+  ctx.lineTo(0, -13 * s);
   ctx.strokeStyle = '#aaa';
   ctx.lineWidth = 1.2 * s;
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(0, -14*s, 1.5*s, 0, Math.PI*2);
+  ctx.arc(0, -14 * s, 1.5 * s, 0, Math.PI * 2);
   ctx.fillStyle = '#aaa';
   ctx.fill();
 
-  // Left leg
-  drawLeg(-8*s, 6*s, -14*s, 16*s, s);
-  // Right leg
-  drawLeg(8*s, 6*s, 14*s, 16*s, s);
+  // Left leg + footpad
+  drawLeg(-8 * s, 6 * s, -14 * s, 16 * s, s);
+  // Right leg + footpad
+  drawLeg(8 * s, 6 * s, 14 * s, 16 * s, s);
 
   ctx.restore();
 
   // Thrust flame (screen-space)
   if (input.thrust && lander.fuel > 0) {
     const a = -lander.angle;
-    const flameLen = (28 + Math.random()*12) * s;
-    const fx = cx + Math.sin(a) * 16*s;
-    const fy = cy + Math.cos(a) * 16*s;
+    const flameLen = (28 + Math.random() * 12) * s;
+    const fx = cx + Math.sin(a) * 16 * s;
+    const fy = cy + Math.cos(a) * 16 * s;
     ctx.save();
     ctx.translate(fx, fy);
-    ctx.rotate(-a - Math.PI/2);
+    ctx.rotate(-a - Math.PI / 2);
     ctx.beginPath();
     ctx.moveTo(0, flameLen);
-    ctx.lineTo(-5*s, 0);
-    ctx.lineTo(5*s, 0);
+    ctx.lineTo(-5 * s, 0);
+    ctx.lineTo(5 * s, 0);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(240,192,64,' + (0.7+Math.random()*0.3) + ')';
+    ctx.fillStyle = 'rgba(240, 192, 64,' + (0.7 + Math.random() * 0.3) + ')';
     ctx.fill();
     ctx.restore();
   }
@@ -583,7 +579,7 @@ function drawLeg(x1, y1, x2, y2, s) {
   ctx.lineWidth = 2 * s;
   ctx.lineCap = 'round';
   ctx.stroke();
-  // Footpad (flat pad at bottom of leg)
+  // Footpad (flat pad at bottom)
   const padW = 5 * s;
   ctx.beginPath();
   ctx.moveTo(x2 - padW, y2);
@@ -598,7 +594,7 @@ function drawParticles() {
     const alpha = Math.max(0, p.life / p.maxLife);
     ctx.globalAlpha = alpha;
     ctx.fillStyle = p.color;
-    ctx.fillRect(p.x*scale - p.size*scale/2, p.y*scale - p.size*scale/2, p.size*scale, p.size*scale);
+    ctx.fillRect(p.x * scale - p.size * scale / 2, p.y * scale - p.size * scale / 2, p.size * scale, p.size * scale);
   }
   ctx.globalAlpha = 1;
 }
@@ -607,9 +603,22 @@ function drawParticles() {
    HUD
 ============================================================ */
 function updateHUD() {
-  document.getElementById('hud-fuel').textContent = Math.max(0, Math.round(lander.fuel));
-  const speed = Math.sqrt(lander.vx*lander.vx + lander.vy*lander.vy);
+  const fuelPct = Math.max(0, lander.fuel);
+  const fuelEl = document.getElementById('hud-fuel');
+  fuelEl.textContent = Math.round(fuelPct);
+
+  // Color code: red (critical) → yellow (low) → default
+  if (fuelPct <= 15) {
+    fuelEl.style.color = '#f44';
+  } else if (fuelPct <= 30) {
+    fuelEl.style.color = '#fc0';
+  } else {
+    fuelEl.style.color = '';
+  }
+
+  const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
   document.getElementById('hud-spd').textContent = speed.toFixed(1);
+
   // Altitude: vertical distance to terrain directly below
   let alt = Infinity;
   for (let i = 0; i < terrain.length - 1 && alt > 50; i++) {
@@ -628,11 +637,11 @@ function updateHUD() {
 ============================================================ */
 function initLander() {
   lander = {
-    x: C_W * 0.2,                    // start position
+    x: C_W * 0.2,
     y: C_H * 0.15,
     vx: 0, vy: 0,
-    angle: 0,                        // radians; 0 = facing up (negative-y)
-    av: 0,                           // angular velocity
+    angle: 0,
+    av: 0,
     fuel: MAX_FUEL
   };
 }
@@ -647,21 +656,12 @@ function startLevel(level) {
 
   hideAllOverlays();
   document.getElementById('hud').classList.remove('hidden');
-  const isMobile = 'ontouchstart' in window;
-  document.getElementById('touch-controls').classList.toggle('hidden', !isMobile);
-
-  // Show controls hint briefly on desktop (not on mobile — they have buttons)
-  if (!isMobile) {
-    const hint = document.getElementById('game-hint');
-    hint.classList.remove('hidden');
-    setTimeout(function() { hint.classList.add('hidden'); }, 6000);
-  }
+  document.getElementById('touch-controls').classList.remove('hidden');
 
   lastTime = performance.now();
   levelStartTime = lastTime;
 }
 
-// Abort current flight and return to menu without penalty
 function abortLevel() {
   if (state !== 'playing') return;
   state = 'menu';
@@ -671,7 +671,7 @@ function abortLevel() {
   showMenu();
 }
 
-// Wire up abort button click handler
+// Abort button click handler
 document.addEventListener('click', function(e) {
   if (e.target && e.target.id === 'btn-abort') abortLevel();
 });
@@ -681,11 +681,10 @@ function endCrash() {
   spawnExplosion();
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('touch-controls').classList.add('hidden');
-  document.getElementById('game-hint').classList.add('hidden');
-  const spd = Math.sqrt(lander.vx*lander.vx + lander.vy*lander.vy);
+  const spd = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
   let crashMsg = 'Impact speed: ' + spd.toFixed(1) + ' px/s';
   if (highScores['ll_best_' + currentLevel] > 0) {
-    crashMsg += '\nBest: ' + highScores['ll_best_' + currentLevel].toLocaleString() + ' — can you beat it?';
+    crashMsg += '\nBest: ' + highScores['ll_best_' + currentLevel].toLocaleString();
   }
   document.getElementById('crash-info').textContent = crashMsg;
   setTimeout(function() { showOverlay('crash-screen'); }, 1200);
@@ -693,13 +692,16 @@ function endCrash() {
 
 function endWin() {
   state = 'won';
-  const elapsed = (performance.now() - levelStartTime) / 1000; // seconds
+  const elapsed = (performance.now() - levelStartTime) / 1000;
   const fuelPct = Math.max(0, lander.fuel);
-  const spd = Math.sqrt(lander.vx*lander.vx + lander.vy*lander.vy);
-  const timeBonus = Math.round(Math.max(0, (45 - elapsed)) * 8);
-  const precisionBonus = Math.max(0, Math.round((LAND_VY_MAX - spd) * 40));
-  const score = Math.max(100, Math.round(fuelPct * 25 + timeBonus + precisionBonus + 500));
+  const spd = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
 
+  // Scoring: TimeBonus × FuelMultiplier (never negative)
+  const timeBonus = Math.round(Math.max(0, (45 - elapsed)) * 8);
+  const fuelMult = fuelPct / MAX_FUEL + 0.5;
+  const score = Math.max(100, Math.round((fuelPct * 25) + timeBonus * fuelMult));
+
+  // Save high score
   const key = 'll_best_' + currentLevel;
   const oldBest = highScores[key] || 0;
   if (score > oldBest) {
@@ -715,13 +717,9 @@ function endWin() {
 
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('touch-controls').classList.add('hidden');
-  document.getElementById('game-hint').classList.add('hidden');
-  document.getElementById('win-score').textContent = 'Score: ' + score.toLocaleString() + ' | Fuel: ' + Math.round(fuelPct) + '%';
-  if (score > oldBest) {
-    document.getElementById('win-best').textContent = 'NEW BEST!';
-  } else if (oldBest > 0) {
-    document.getElementById('win-best').textContent = 'Best: ' + oldBest.toLocaleString();
-  }
+  document.getElementById('win-score').textContent = 'Score: ' + score.toLocaleString();
+  document.getElementById('win-details').innerHTML =
+    'Fuel: ' + Math.round(fuelPct) + '% | Time: ' + elapsed.toFixed(1) + 's';
 
   const nextBtn = document.getElementById('btn-next-level');
   if (currentLevel >= LEVEL_COUNT) {
@@ -735,17 +733,19 @@ function endWin() {
 
 function nextLevelOrMenu() {
   if (currentLevel >= LEVEL_COUNT) {
-    showMenu();
+    state = 'complete';
+    document.getElementById('complete-screen').classList.remove('hidden');
   } else {
     startLevel(currentLevel + 1);
   }
 }
+document.getElementById('btn-next-level').addEventListener('click', nextLevelOrMenu);
 
 /* ============================================================
    SCREENS
 ============================================================ */
 function hideAllOverlays() {
-  document.querySelectorAll('.overlay').forEach(function(el){ el.classList.add('hidden'); });
+  document.querySelectorAll('.overlay').forEach(function(el) { el.classList.add('hidden'); });
 }
 function showOverlay(id) {
   hideAllOverlays();
@@ -770,12 +770,12 @@ function showLevelSelect() {
 
     if (i > levelUnlocked) {
       btn.classList.add('locked');
-      btn.innerHTML = '<span class="level-num">&#x1F512;</span>';
+      btn.innerHTML = '&#x1F512;';
     } else {
       const best = highScores['ll_best_' + i];
       if (best >= 0) btn.classList.add('completed');
-      btn.innerHTML = '<span class="level-num">' + i + '</span>' +
-        (best > 0 ? '<span class="level-best">' + best.toLocaleString() + '</span>' : '');
+      btn.innerHTML = '<span style="font-size:clamp(1rem,3vw,1.3rem)">' + i + '</span>' +
+        (best > 0 ? '<br><span style="font-size:clamp(0.5rem,1.5vw,0.7rem);color:#f0c040">' + best.toLocaleString() + '</span>' : '');
     }
     grid.appendChild(btn);
   }
@@ -784,7 +784,7 @@ function showLevelSelect() {
 }
 
 /* ============================================================
-   STAR FIELD
+   STAR FIELD (with twinkle)
 ============================================================ */
 function generateStars() {
   stars = [];
@@ -793,13 +793,14 @@ function generateStars() {
       x: Math.random() * C_W,
       y: Math.random() * C_H * 0.75,
       size: 0.6 + Math.random() * 1.4,
-      brightness: 0.2 + Math.random() * 0.6
+      brightness: 0.2 + Math.random() * 0.6,
+      twinkleSpeed: 0.5 + Math.random() * 2
     });
   }
 }
 
 /* ============================================================
-   GAME LOOP
+   GAME LOOP (60fps via requestAnimationFrame)
 ============================================================ */
 function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
@@ -817,7 +818,7 @@ function gameLoop(timestamp) {
     updateHUD();
   }
 
-  // Always render scene when playing or after crash/won (for visual continuity)
+  // Always render scene when playing or after crash/won
   drawTerrain();
   if (state === 'playing' || state === 'crashed') {
     if (state !== 'crashed') drawLander();
@@ -829,11 +830,10 @@ function gameLoop(timestamp) {
 }
 
 function drawCrashRemnants() {
-  // Draw a small scorched mark on the ground where the lander crashed
   const cx = lander.x * scale, cy = Math.min(lander.y * scale, C_H * scale);
   ctx.beginPath();
-  ctx.arc(cx, cy, 12 * scale, 0, Math.PI*2);
-  ctx.strokeStyle = 'rgba(255,96,32,0.4)';
+  ctx.arc(cx, cy, 12 * scale, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 96, 32, 0.4)';
   ctx.lineWidth = 2;
   ctx.stroke();
 }
