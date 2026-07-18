@@ -20,7 +20,7 @@
 </head>
 <body>
   <canvas id="game"></canvas>
-    <div class="ctrl">
+    <div class="ctrl" id="controls" style="display:none;">
       <button class="btn" data-key="KeyA">&#8617;</button>
       <button class="btn" data-key="ArrowUp">&#9650;</button>
       <button class="btn" data-key="KeyD">&#8618;</button>
@@ -35,6 +35,16 @@
     }
     window.addEventListener('resize', resize);
     resize();
+
+    let showTitle = true;
+
+    function resetGame() {
+      sx = c.width / 2;
+      sy = 60;
+      vx = 0;
+      vy = 0;
+      angle = -Math.PI / 2; // pointing up initially (negative y)
+    }
 
     let sx = c.width / 2;
     let sy = 60;
@@ -72,6 +82,32 @@
       btn.addEventListener('mouseleave', off);
     }
     document.querySelectorAll('.btn').forEach(bindButton);
+
+    // title-screen START button — click or tap on the canvas while showTitle is true
+    function hitTestStart(px, py) {
+      const w = 160, h = 56;
+      const bx = (c.width - w) / 2;
+      const by = c.height * 0.48;
+      return px >= bx && px <= bx + w && py >= by && py <= by + h;
+    }
+
+    function onTitlePointer(e) {
+      if (!showTitle) return;
+      e.preventDefault();
+      const rect = c.getBoundingClientRect();
+      let touch = null;
+      // prefer the first changed point for click, else the active touches
+      if (e.changedTouches && e.changedTouches.length > 0) touch = e.changedTouches[0];
+      else if (e.touches && e.touches.length > 0) touch = e.touches[0];
+      else if (e.clientX !== undefined) touch = { clientX: e.clientX, clientY: e.clientY };
+      if (!touch || !hitTestStart(touch.clientX - rect.left, touch.clientY - rect.top)) return;
+      showTitle = false;
+      document.getElementById('controls').style.display = 'flex';
+      resetGame();
+    }
+
+    c.addEventListener('click', onTitlePointer);
+    c.addEventListener('touchstart', onTitlePointer, { passive: false });
 
     function updatePhysics() {
       // gravity pulls ship down (positive y)
@@ -189,8 +225,46 @@
       ctx.stroke();
     }
 
+    // title screen — large bold sans-serif vector lettering + START button
+    function drawTitle() {
+      ctx.save();
+      // "LUNAR LANDER" headline
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+      ctx.font = 'bold 48px "Arial", "Helvetica Neue", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeText('LUNAR LANDER', c.width / 2, c.height * 0.3);
+
+      // START button — outlined rectangle with centered text inside
+      const w = 160, h = 56;
+      const bx = (c.width - w) / 2;
+      const by = c.height * 0.48;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, w, h);
+
+      ctx.font = 'bold 32px "Arial", "Helvetica Neue", sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('START', c.width / 2, by + h * 0.58);
+
+      // subtle hint below the button so new players know to tap/click
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('tap or click START', c.width / 2, by + h + 28);
+
+      ctx.restore();
+    }
+
     function frame() {
       if (c.width !== window.innerWidth || c.height !== window.innerHeight) resize();
+
+      // title screen — no physics, just artwork
+      if (showTitle) {
+        drawTitle();
+        requestAnimationFrame(frame);
+        return;
+      }
 
       updatePhysics();
 
@@ -201,7 +275,7 @@
       // tiny HUD so you can see what's happening
       ctx.fillStyle = '#fff';
       ctx.font = '12px monospace';
-      const deg = Math.round(angle * 180 / Math.PI);
+      const deg = Math.round(angle * 180 / Math.PI) + 90;
       ctx.fillText(`vel: ${vx.toFixed(2)}, ${vy.toFixed(2)}`, 8, c.height - 4);
       ctx.fillText(`pos: ${sx.toFixed(0)}, ${sy.toFixed(0)}`, 8, c.height - 18);
       ctx.fillText(`ang: ${deg}°`, 8, c.height - 32);
