@@ -13,8 +13,7 @@
     canvas { display: block; flex: 1; width: 100%; background: #000; }
 
     /* touch controls — bottom bar */
-    .ctrl { display: flex !important; justify-content: center; gap: 12px; height: 80px; background: #000; user-select: none; -webkit-user-select: none; }
-    .ctrl.hidden { display: none !important; }
+    .ctrl { display: flex; justify-content: center; gap: 12px; height: 80px; background: #000; user-select: none; -webkit-user-select: none; position: relative; z-index: 1; }
     .ctrl.hidden { display: none !important; }
     .btn { width: 64px; height: 56px; border: 1.5px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: none; }
     .btn:active, .btn.active { background: #fff; color: #000; }
@@ -32,12 +31,25 @@
     const ctx = c.getContext('2d');
 
     function resize() {
-      // use innerWidth/innerHeight to account for browser UI chrome on mobile
-      const w = window.innerWidth || document.documentElement.clientWidth || 1;
-      const h = window.innerHeight || document.documentElement.clientHeight || 1;
-      c.width  = w;
-      c.height = h - (document.getElementById('controls').offsetHeight || 0);
+      // use visualViewport when available (tracks usable area behind browser chrome)
+      const vv = window.visualViewport;
+      let w, h;
+      if (vv) {
+        w = vv.width  || window.innerWidth  || document.documentElement.clientWidth  || 1;
+        h = vv.height || window.innerHeight || document.documentElement.clientHeight || 1;
+      } else {
+        w = window.innerWidth  || document.documentElement.clientWidth  || 1;
+        h = window.innerHeight || document.documentElement.clientHeight || 1;
+      }
+      const ctrlH = document.getElementById('controls').offsetHeight || 0;
+      c.width  = Math.round(w);
+      c.height = Math.max(0, Math.round(h) - ctrlH);
     }
+
+    // refresh canvas size whenever the visual viewport changes (e.g. iOS address bar collapse/expand)
+    window.visualViewport?.addEventListener('resize', resize);
+    window.visualViewport?.addEventListener('scroll', resize);
+
     window.addEventListener('resize', resize);
     window.addEventListener('orientationchange', () => setTimeout(resize, 200));
     // initial resize after layout settles
@@ -268,7 +280,16 @@
     }
 
     function frame() {
-      if (c.width !== window.innerWidth || c.height !== window.innerHeight) resize();
+      // re-sync canvas size whenever viewport changes (e.g. address bar collapse)
+      const vv = window.visualViewport;
+      let vw = vv ? vv.width  : undefined;
+      let vh = vv ? vv.height : undefined;
+      if (vw === undefined) vw  = window.innerWidth;
+      if (vh === undefined) vh = window.innerHeight;
+      const ctrlH = document.getElementById('controls').offsetHeight || 0;
+      const wantW = Math.round(vw);
+      const wantH = Math.max(0, Math.round(vh) - ctrlH);
+      if (c.width !== wantW || c.height !== wantH) resize();
 
       // title screen — no physics, just artwork
       if (showTitle) {
