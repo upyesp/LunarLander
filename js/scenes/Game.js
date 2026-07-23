@@ -46,9 +46,12 @@ class Game extends Phaser.Scene {
     // clear any held thrust on scene shutdown
     this.events.on('shutdown', () => Audio.setThrust(false));
 
-    // global release handling so hold buttons clear even if finger drifts off
-    this.input.on('pointerup', (p) => this.releaseControl(p));
-    this.input.on('pointerupoutside', (p) => this.releaseControl(p));
+    // Global safety net: if the OS cancels a touch (e.g. gesture conflict,
+    // incoming notification) Phaser fires pointercancel, not pointerup.
+    // Without this, buttons get stuck 'active' and the next press feels dead.
+    this.input.on('pointerup', (p) => this.clearPointer(p.id));
+    this.input.on('pointerupoutside', (p) => this.clearPointer(p.id));
+    this.input.on('pointercancel', (p) => this.clearPointer(p.id));
 
     this.showBanner('LEVEL ' + this.level, 1100);
   }
@@ -200,58 +203,86 @@ class Game extends Phaser.Scene {
     this.hiText.setText('HI ' + pad(this.registry.get('hiscore') || 0));
     this.livesText.setText('LIVES x' + Math.max(0, this.lives));
 
-    const g = this.fuelG;
-    g.clear();
-    const fx = 48, fy = 30, fw = this.W - 58, fh = 8;
+    // Only redraw the fuel bar when it has visibly changed; avoids a
+    // per-frame Graphics re-upload (helps keep input responsive on mobile).
     const ratio = Phaser.Math.Clamp(this.lander.fuel / FUEL_MAX, 0, 1);
-    g.lineStyle(1, 0xffffff, 1);
-    g.strokeRect(fx, fy, fw, fh);
-    g.fillStyle(ratio < 0.25 ? 0x666666 : 0xffffff, 1);
-    g.fillRect(fx + 1, fy + 1, (fw - 2) * ratio, fh - 2);
+    const low = ratio < 0.25;
+    const step = Math.round(ratio * 50); // ~2% granularity
+    if (this._lastFuelStep !== step || this._lastFuelLow !== low) {
+      this._lastFuelStep = step;
+      this._lastFuelLow = low;
+      const g = this.fuelG;
+      const fx = 48, fy = 30, fw = this.W - 58, fh = 8;
+      g.clear();
+      g.lineStyle(1, 0xffffff, 1);
+      g.strokeRect(fx, fy, fw, fh);
+      g.fillStyle(low ? 0x666666 : 0xffffff, 1);
+      g.fillRect(fx + 1, fy + 1, (fw - 2) * ratio, fh - 2);
+    }
   }
 
   // ---------- on-screen controls ----------
+  // Touch-only state machine. We deliberately do NOT use pointerover/out:
+  // they fire erratically on touch devices and cause missed/stuck presses.
+  // State is driven purely by pointerdown/up/upoutside/cancel + pointer id.
   makeHoldButton(x, y, w, h, label, size) {
     const c = this.add.container(x, y);
     const g = this.add.graphics();
-    const draw = (over, pressed) => {
-      g.clear();
-      if (over) { g.fillStyle(0xffffff, 1); g.fillRoundedRect(-w / 2, -h / 2, w, h, 12); }
-      g.lineStyle(2, 0xffffff, 1);
-      g.strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
-      void pressed;
-    };
     const t = this.add.text(0, 0, label, {
       fontFamily: 'Courier New, monospace', fontSize: size || '18px', fontStyle: 'bold', color: '#ffffff'
     }).setOrigin(0.5);
     c.add([g, t]);
+    // Generous hit area = full button bounds.
     c.setSize(w, h);
     c.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains);
 
-    const refresh = (over) => { draw(over); t.setColor(over ? '#000000' : '#ffffff'); };
-    refresh(false);
+    const draw = (pressed) => {
+      g.clear();
+      if (pressed) { g.fillStyle(0xffffff, 1); g.fillRoundedRect(-w / 2, -h / 2, w, h, 12); }
+      g.lineStyle(2, 0xffffff, 1);
+      g.strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
+      t.setColor(pressed ? '#000000' : '#ffffff');
+    };
+    draw(false);
 
-    const ctl = { active: false, pid: -1, pressed: false };
-    c.on('pointerover', () => { if (!ctl.active) refresh(true); });
-    c.on('pointerout', () => { if (!ctl.active) refresh(false); });
-    c.on('pointerdown', (p) => { ctl.active = true; ctl.pid = p.id; ctl.pressed = true; c.setScale(0.94); refresh(true); });
-    return { c: c, ctl: ctl, refresh: refresh, label: t };
+    const ctl = { active: false, pid: null };
+    const press = (pointer) => {
+      ctl.active = true;
+      ctl.pid = pointer.id;
+      c.setScale(0.95);
+      draw(true);
+    };
+    const release = () => {
+      ctl.active = false;
+      ctl.pid = null;
+      c.setScale(1);
+      draw(false);
+    };
+    ctl.release = release;
+
+    c.on('pointerdown', press);
+    // Release directly on the button OR when the finger lifts off it:
+    c.on('pointerup', release);
+    c.on('pointerupoutside', release);
+    c.on('pointercancel', release);
+
+    return { c: c, ctl: ctl };
   }
 
   makeControls() {
-    const cy = this.H - 50;
-    this.rotL   = this.makeHoldButton(55,         cy, 84, 84, '\u25c0', '30px'); // ◀
-    this.rotR   = this.makeHoldButton(this.W - 55, cy, 84, 84, '\u25b6', '30px'); // ▶
-    this.thrust = this.makeHoldButton(this.W / 2,  cy, 140, 84, 'THRUST', '18px');
+    // Slightly larger targets, lifted a little from the bottom edge so they
+    // never sit under a browser/OS gesture bar.
+    const cy = this.H - 58;
+    this.rotL   = this.makeHoldButton(58,         cy, 90, 90, '\u25c0', '34px'); // ◀
+    this.rotR   = this.makeHoldButton(this.W - 58, cy, 90, 90, '\u25b6', '34px'); // ▶
+    this.thrust = this.makeHoldButton(this.W / 2,  cy, 150, 90, 'THRUST', '20px');
   }
 
-  releaseControl(p) {
+  // Global safety net keyed by pointer id (covers the rare case where a
+  // pointerup/cancel is dispatched at scene level rather than on the button).
+  clearPointer(pid) {
     [this.rotL, this.rotR, this.thrust].forEach(o => {
-      if (o.ctl.pid === p.id) {
-        o.ctl.active = false;
-        o.c.setScale(1);
-        o.refresh(false);
-      }
+      if (o.ctl.active && o.ctl.pid === pid) o.ctl.release();
     });
   }
 
