@@ -4,6 +4,7 @@ class GameOver extends Phaser.Scene {
 
   create(data) {
     this.cameras.main.setBackgroundColor('#000000');
+    DOMUI.clear();
     const W = this.scale.width, H = this.scale.height;
     Audio.setThrust(false);
 

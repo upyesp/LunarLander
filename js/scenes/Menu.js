@@ -4,6 +4,7 @@ class Menu extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#000000');
+    DOMUI.clear(); // remove any leftover DOM controls from Game/Settings
     const W = this.scale.width, H = this.scale.height;
     this.W = W; this.H = H;
 

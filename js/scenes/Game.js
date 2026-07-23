@@ -43,15 +43,9 @@ class Game extends Phaser.Scene {
     // keyboard support (handy for desktop testing)
     this.cursors = this.input.keyboard ? this.input.keyboard.createCursorKeys() : null;
 
-    // clear any held thrust on scene shutdown
-    this.events.on('shutdown', () => Audio.setThrust(false));
-
-    // Global safety net: if the OS cancels a touch (e.g. gesture conflict,
-    // incoming notification) Phaser fires pointercancel, not pointerup.
-    // Without this, buttons get stuck 'active' and the next press feels dead.
-    this.input.on('pointerup', (p) => this.clearPointer(p.id));
-    this.input.on('pointerupoutside', (p) => this.clearPointer(p.id));
-    this.input.on('pointercancel', (p) => this.clearPointer(p.id));
+    // clear any held thrust + DOM controls on scene shutdown
+    this.events.on('shutdown', () => { Audio.setThrust(false); DOMUI.clear(); });
+    this.events.on('pause',     () => { Audio.setThrust(false); });
 
     this.showBanner('LEVEL ' + this.level, 1100);
   }
@@ -221,69 +215,24 @@ class Game extends Phaser.Scene {
     }
   }
 
-  // ---------- on-screen controls ----------
-  // Touch-only state machine. We deliberately do NOT use pointerover/out:
-  // they fire erratically on touch devices and cause missed/stuck presses.
-  // State is driven purely by pointerdown/up/upoutside/cancel + pointer id.
-  makeHoldButton(x, y, w, h, label, size) {
-    const c = this.add.container(x, y);
-    const g = this.add.graphics();
-    const t = this.add.text(0, 0, label, {
-      fontFamily: 'Courier New, monospace', fontSize: size || '18px', fontStyle: 'bold', color: '#ffffff'
-    }).setOrigin(0.5);
-    c.add([g, t]);
-    // Generous hit area = full button bounds.
-    c.setSize(w, h);
-    c.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains);
-
-    const draw = (pressed) => {
-      g.clear();
-      if (pressed) { g.fillStyle(0xffffff, 1); g.fillRoundedRect(-w / 2, -h / 2, w, h, 12); }
-      g.lineStyle(2, 0xffffff, 1);
-      g.strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
-      t.setColor(pressed ? '#000000' : '#ffffff');
-    };
-    draw(false);
-
-    const ctl = { active: false, pid: null };
-    const press = (pointer) => {
-      ctl.active = true;
-      ctl.pid = pointer.id;
-      c.setScale(0.95);
-      draw(true);
-    };
-    const release = () => {
-      ctl.active = false;
-      ctl.pid = null;
-      c.setScale(1);
-      draw(false);
-    };
-    ctl.release = release;
-
-    c.on('pointerdown', press);
-    // Release directly on the button OR when the finger lifts off it:
-    c.on('pointerup', release);
-    c.on('pointerupoutside', release);
-    c.on('pointercancel', release);
-
-    return { c: c, ctl: ctl };
-  }
-
+  // ---------- on-screen controls (native DOM, see js/domui.js) ----------
+  // Why DOM, not Phaser: Phaser's canvas hit-testing was unreliable on mobile
+  // (missed presses + cross-firing between buttons). Native DOM touch elements
+  // are coordinate-accurate on every mobile browser and handle multi-touch
+  // natively (rotate + thrust simultaneously).
   makeControls() {
-    // Slightly larger targets, lifted a little from the bottom edge so they
-    // never sit under a browser/OS gesture bar.
-    const cy = this.H - 58;
-    this.rotL   = this.makeHoldButton(58,         cy, 90, 90, '\u25c0', '34px'); // ◀
-    this.rotR   = this.makeHoldButton(this.W - 58, cy, 90, 90, '\u25b6', '34px'); // ▶
-    this.thrust = this.makeHoldButton(this.W / 2,  cy, 150, 90, 'THRUST', '20px');
+    DOMUI.init();
+    DOMUI.clear();
+    const cy = this.H - 60;
+    this.btnRotL   = DOMUI.holdButton(58,         cy, 96, 96, '\u25c0', '38px');      // ◀
+    this.btnRotR   = DOMUI.holdButton(this.W - 58, cy, 96, 96, '\u25b6', '38px');      // ▶
+    this.btnThrust = DOMUI.holdButton(this.W / 2,  cy, 156, 96, 'THRUST', '22px');
   }
 
-  // Global safety net keyed by pointer id (covers the rare case where a
-  // pointerup/cancel is dispatched at scene level rather than on the button).
-  clearPointer(pid) {
-    [this.rotL, this.rotR, this.thrust].forEach(o => {
-      if (o.ctl.active && o.ctl.pid === pid) o.ctl.release();
-    });
+  releaseAllControls() {
+    if (this.btnRotL)   this.btnRotL.release();
+    if (this.btnRotR)   this.btnRotR.release();
+    if (this.btnThrust) this.btnThrust.release();
   }
 
   // ---------- main loop ----------
@@ -293,14 +242,14 @@ class Game extends Phaser.Scene {
     const dt = Math.min(delta, 50) / 1000;
     const L = this.lander;
 
-    // rotation input
+    // rotation input (DOM buttons are coordinate-accurate; keyboard for desktop)
     let rot = 0;
-    if (this.rotL.ctl.active || (this.cursors && this.cursors.left.isDown))  rot -= 1;
-    if (this.rotR.ctl.active || (this.cursors && this.cursors.right.isDown)) rot += 1;
+    if (this.btnRotL.pressed || (this.cursors && this.cursors.left.isDown))  rot -= 1;
+    if (this.btnRotR.pressed || (this.cursors && this.cursors.right.isDown)) rot += 1;
     L.a += rot * ROT_SPEED * dt;
 
     // thrust input
-    const wantThrust = this.thrust.ctl.active ||
+    const wantThrust = this.btnThrust.pressed ||
                        (this.cursors && (this.cursors.up.isDown || (this.cursors.space && this.cursors.space.isDown)));
     const thrusting = wantThrust && L.fuel > 0;
 
