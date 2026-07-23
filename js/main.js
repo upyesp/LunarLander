@@ -1,9 +1,7 @@
 /* ============================================================
    Lunar Lander - Phaser game configuration & boot
+   (GAME_W / GAME_H are defined in util.js)
    ============================================================ */
-
-const GAME_W = 360;
-const GAME_H = 640;
 
 const config = {
   type: Phaser.AUTO,

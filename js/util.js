@@ -2,6 +2,10 @@
    Lunar Lander - shared helpers, constants and drawing utils
    ============================================================ */
 
+// --- Canvas / virtual resolution (single source of truth) ---
+const GAME_W = 360;
+const GAME_H = 640;
+
 // --- Tunable game constants (in game units / pixels & seconds) ---
 const GRAVITY_BASE = 28;   // px/s^2 at gravity multiplier 1.0
 const THRUST       = 82;   // px/s^2 of thrust (always > max gravity)

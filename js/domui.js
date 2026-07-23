@@ -19,9 +19,6 @@
    coordinate space using percentages of the overlay.
    ============================================================ */
 
-const GAME_W = 360;
-const GAME_H = 640;
-
 const DOMUI = {
   overlay: null,
   scale: 1,

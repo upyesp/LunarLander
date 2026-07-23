@@ -5,3 +5,10 @@ initial prompt.md
 .DS_Store
 Thumbs.db
 *.log
+
+# Local dev tooling / diagnostics (never commit)
+node_modules/
+package.json
+package-lock.json
+_diag*.js
+_shot_*.png
