@@ -1,0 +1,7 @@
+# Private / local-only — never commit
+initial prompt.md
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
