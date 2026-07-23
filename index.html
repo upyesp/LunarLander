@@ -1,315 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Lunar Lander</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; display: flex; flex-direction: column; }
-
-    /* canvas fills everything above the control bar */
-    canvas { display: block; flex: 1; width: 100%; background: #000; }
-
-    /* touch controls — bottom bar */
-    .ctrl { display: flex; justify-content: center; gap: 12px; height: 80px; background: #000; user-select: none; -webkit-user-select: none; position: relative; z-index: 1; }
-    .ctrl.hidden { display: none !important; }
-    .btn { width: 64px; height: 56px; border: 1.5px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: none; }
-    .btn:active, .btn.active { background: transparent; }
-  </style>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <canvas id="game"></canvas>
-    <div class="ctrl hidden" id="controls">
-      <button class="btn" data-key="KeyA">&#8617;</button>
-      <button class="btn" data-key="ArrowUp">&#9650;</button>
-      <button class="btn" data-key="KeyD">&#8618;</button>
-    </div>
-  <script>
-    const c = document.getElementById('game');
-    const ctx = c.getContext('2d');
+  <div id="game-container"></div>
 
-    function resize() {
-      // use visualViewport when available (tracks usable area behind browser chrome)
-      const vv = window.visualViewport;
-      let w, h;
-      if (vv) {
-        w = vv.width  || window.innerWidth  || document.documentElement.clientWidth  || 1;
-        h = vv.height || window.innerHeight || document.documentElement.clientHeight || 1;
-      } else {
-        w = window.innerWidth  || document.documentElement.clientWidth  || 1;
-        h = window.innerHeight || document.documentElement.clientHeight || 1;
-      }
-      const ctrlH = document.getElementById('controls').offsetHeight || 0;
-      c.width  = Math.round(w);
-      c.height = Math.max(0, Math.round(h) - ctrlH);
-    }
+  <!-- Phaser engine -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 
-    // refresh canvas size whenever the visual viewport changes (e.g. iOS address bar collapse/expand)
-    window.visualViewport?.addEventListener('resize', resize);
-    window.visualViewport?.addEventListener('scroll', resize);
+  <!-- Helpers & engine modules -->
+  <script src="js/util.js"></script>
+  <script src="js/audio.js"></script>
 
-    window.addEventListener('resize', resize);
-    window.addEventListener('orientationchange', () => setTimeout(resize, 200));
-    // initial resize after layout settles
-    requestAnimationFrame(() => {
-      resize();
-      frame();
-    });
+  <!-- Scenes -->
+  <script src="js/scenes/Boot.js"></script>
+  <script src="js/scenes/Menu.js"></script>
+  <script src="js/scenes/Settings.js"></script>
+  <script src="js/scenes/Game.js"></script>
+  <script src="js/scenes/GameOver.js"></script>
 
-    let showTitle = true;
-
-    function resetGame() {
-      sx = c.width / 2;
-      sy = 60;
-      vx = 0;
-      vy = 0;
-      angle = -Math.PI / 2; // pointing up initially (negative y)
-    }
-
-    let sx = c.width / 2;
-    let sy = 60;
-    let vx = 0;
-    let vy = 0;
-    let angle = -Math.PI / 2; // pointing up initially (negative y)
-    const shipW = 30;
-    const shipH = 20;
-
-    // physics constants (pixels/frame² at 60fps) — dialled down for a floaty feel
-    const GRAVITY = 0.07;
-    const THRUST = 0.10;
-    const ROTATE_SPEED = 0.025;
-    const MAX_SPEED = 3.0;
-    const MAX_TILT_DEG = 15; // max rotation from vertical in either direction
-
-    // input state — arrow keys + WASD / touch buttons
-    const keys = {};
-    window.addEventListener('keydown', e => { keys[e.code] = true;  e.preventDefault(); });
-    window.addEventListener('keyup',   e => { keys[e.code] = false; });
-
-    function bindButton(btn) {
-      const code = btn.dataset.key;
-      const on  = () => { keys[code] = true;  btn.classList.add('active'); };
-      const off = () => { keys[code] = false; btn.classList.remove('active'); };
-
-      // touch (primary mobile path)
-      btn.addEventListener('touchstart', e => { e.preventDefault(); on(); });
-      btn.addEventListener('touchend',   e => { e.preventDefault(); off(); });
-      btn.addEventListener('touchcancel',off);
-
-      // mouse fallback for desktop testing
-      btn.addEventListener('mousedown',  on);
-      btn.addEventListener('mouseup',    off);
-      btn.addEventListener('mouseleave', off);
-    }
-    document.querySelectorAll('.btn').forEach(bindButton);
-
-    // title-screen START button — click or tap on the canvas while showTitle is true
-    function hitTestStart(px, py) {
-      const w = 160, h = 56;
-      const bx = (c.width - w) / 2;
-      const by = c.height * 0.48;
-      return px >= bx && px <= bx + w && py >= by && py <= by + h;
-    }
-
-    function onTitlePointer(e) {
-      if (!showTitle) return;
-      e.preventDefault();
-      const rect = c.getBoundingClientRect();
-      let touch = null;
-      // prefer the first changed point for click, else the active touches
-      if (e.changedTouches && e.changedTouches.length > 0) touch = e.changedTouches[0];
-      else if (e.touches && e.touches.length > 0) touch = e.touches[0];
-      else if (e.clientX !== undefined) touch = { clientX: e.clientX, clientY: e.clientY };
-      if (!touch || !hitTestStart(touch.clientX - rect.left, touch.clientY - rect.top)) return;
-      showTitle = false;
-      document.getElementById('controls').classList.remove('hidden');
-      resize(); // update canvas size now that controls are visible
-      resetGame();
-    }
-
-    c.addEventListener('click', onTitlePointer);
-    c.addEventListener('touchstart', onTitlePointer, { passive: false });
-
-    function updatePhysics() {
-      // gravity pulls ship down (positive y)
-      vy += GRAVITY;
-
-      // rotation — left/right keys turn the craft around its center, clamped to ±15° from vertical
-      const maxTilt = MAX_TILT_DEG * Math.PI / 180;
-      if (keys['ArrowLeft']  || keys['KeyA']) angle -= ROTATE_SPEED;
-      if (keys['ArrowRight'] || keys['KeyD']) angle += ROTATE_SPEED;
-
-      // clamp rotation to ±15 degrees from vertical (-π/2)
-      const vertical = -Math.PI / 2;
-      if (angle < vertical - maxTilt) angle = vertical - maxTilt;
-      if (angle > vertical + maxTilt) angle = vertical + maxTilt;
-
-      // auto-snap to vertical when within ±3 degrees and no rotation input is held
-      const snapZone = 3 * Math.PI / 180;
-      if (!keys['ArrowLeft'] && !keys['KeyA'] && !keys['ArrowRight'] && !keys['KeyD']) {
-        if (Math.abs(angle - vertical) <= snapZone) angle = vertical;
-      }
-
-      // thrust applies along the direction the ship is facing
-      // (angle = -PI/2 points up toward negative y)
-      if (keys['ArrowUp'] || keys['KeyW']) {
-        vx += Math.cos(angle) * THRUST;
-        vy += Math.sin(angle) * THRUST;
-
-        // keep thrust direction clean — only push forward, not sideways
-        const forwardX = Math.cos(angle);
-        const forwardY = Math.sin(angle);
-        const dot = vx * forwardX + vy * forwardY;
-        if (dot < 0) { vx *= -dot / MAX_SPEED; vy *= -dot / MAX_SPEED; }
-      }
-
-      // cap speed so the ship can't outrun the frame
-      const spd = Math.hypot(vx, vy);
-      if (spd > MAX_SPEED) { vx *= MAX_SPEED / spd; vy *= MAX_SPEED / spd; }
-
-      sx += vx;
-      sy += vy;
-
-      // wrap horizontally off-screen
-      if (sx < -shipW * 2)     sx = c.width + shipW * 2;
-      if (sx > c.width + shipW * 2)     sx = -shipW * 2;
-
-      // floor — land the ship when it touches bottom
-      const floorY = c.height - shipH;
-      if (sy > floorY) { sy = floorY; vy = 0; vx *= 0.85; }
-    }
-
-    function drawShip(ctx, x, y) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(angle + Math.PI / 2); // draw the ship pointing up when angle = -PI/2
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.5;
-      ctx.lineJoin = 'miter';
-
-      // hull — diamond-ish body with flat bottom (symmetric around origin, nose at top)
-      ctx.beginPath();
-      ctx.moveTo(0, -shipH);                  // nose (top in local coords)
-      ctx.lineTo(shipW * 0.6, shipH * 0.2);   // right shoulder
-      ctx.lineTo(shipW * 0.35, shipH);        // right side of body
-      ctx.lineTo(-shipW * 0.35, shipH);       // left side of body
-      ctx.lineTo(-shipW * 0.6, shipH * 0.2);  // left shoulder
-      ctx.closePath();
-      ctx.stroke();
-
-      // cockpit window
-      ctx.beginPath();
-      ctx.arc(0, -shipH * 0.15, shipW * 0.18, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // three landing skids (feet) — drawn below the hull in local coords
-      ctx.beginPath();
-      ctx.moveTo(-shipW * 0.35, shipH);
-      ctx.lineTo(-shipW * 0.9, shipH + shipH * 0.45);
-      ctx.moveTo(0, shipH);
-      ctx.lineTo(0, shipH + shipH * 0.35);
-      ctx.moveTo(shipW * 0.35, shipH);
-      ctx.lineTo(shipW * 0.9, shipH + shipH * 0.45);
-      ctx.stroke();
-
-      // engine flame (idle) — drawn below the hull in local coords
-      const fl = shipH * 0.7;
-      ctx.beginPath();
-      ctx.moveTo(-shipW * 0.2, shipH);
-      ctx.lineTo(0, shipH + fl);
-      ctx.lineTo(shipW * 0.2, shipH);
-      ctx.closePath();
-      ctx.stroke();
-
-      // thrust flame when engine is on
-      if (keys['ArrowUp'] || keys['KeyW']) {
-        const flicker = 1.0 + Math.random() * 0.3;
-        ctx.beginPath();
-        ctx.moveTo(-shipW * 0.25, shipH);
-        ctx.lineTo(0, shipH + fl * 1.4 * flicker);
-        ctx.lineTo(shipW * 0.25, shipH);
-        ctx.closePath();
-        ctx.stroke();
-      }
-
-      ctx.restore();
-    }
-
-    // floor line so the player has somewhere to land
-    function drawFloor() {
-      const y = c.height; // canvas height now excludes the control bar
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(c.width, y);
-      ctx.stroke();
-    }
-
-    // title screen — large bold sans-serif vector lettering + START button
-    function drawTitle() {
-      ctx.save();
-      // "LUNAR LANDER" headline
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2.5;
-      const titleSize = Math.min(40, c.width * 0.1); // scale to fit mobile
-      ctx.font = `bold ${titleSize}px "Arial", "Helvetica Neue", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.strokeText('LUNAR LANDER', c.width / 2, c.height * 0.3);
-
-      // START button — outlined rectangle with centered text inside
-      const w = 160, h = 56;
-      const bx = (c.width - w) / 2;
-      const by = c.height * 0.48;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(bx, by, w, h);
-
-      ctx.font = 'bold 32px "Arial", "Helvetica Neue", sans-serif';
-      ctx.fillStyle = '#fff';
-      ctx.fillText('START', c.width / 2, by + h * 0.58);
-
-      ctx.restore();
-    }
-
-    function frame() {
-      // re-sync canvas size whenever viewport changes (e.g. address bar collapse)
-      const vv = window.visualViewport;
-      let vw = vv ? vv.width  : undefined;
-      let vh = vv ? vv.height : undefined;
-      if (vw === undefined) vw  = window.innerWidth;
-      if (vh === undefined) vh = window.innerHeight;
-      const ctrlH = document.getElementById('controls').offsetHeight || 0;
-      const wantW = Math.round(vw);
-      const wantH = Math.max(0, Math.round(vh) - ctrlH);
-      if (c.width !== wantW || c.height !== wantH) resize();
-
-      // title screen — no physics, just artwork
-      if (showTitle) {
-        drawTitle();
-        requestAnimationFrame(frame);
-        return;
-      }
-
-      updatePhysics();
-
-      ctx.clearRect(0, 0, c.width, c.height);
-      drawFloor();
-      drawShip(ctx, sx, sy);
-
-      // tiny HUD so you can see what's happening
-      ctx.fillStyle = '#fff';
-      ctx.font = '12px monospace';
-      const deg = Math.round(angle * 180 / Math.PI) + 90;
-      ctx.fillText(`vel: ${vx.toFixed(2)}, ${vy.toFixed(2)}`, 8, c.height - 4);
-      ctx.fillText(`pos: ${sx.toFixed(0)}, ${sy.toFixed(0)}`, 8, c.height - 18);
-      ctx.fillText(`ang: ${deg}°`, 8, c.height - 32);
-
-      requestAnimationFrame(frame);
-    }
-    frame();
-  </script>
+  <!-- Entry point -->
+  <script src="js/main.js"></script>
 </body>
 </html>
