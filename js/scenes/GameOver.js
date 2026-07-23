@@ -27,14 +27,12 @@ class GameOver extends Phaser.Scene {
         color: newHi ? '#ffffff' : '#666666', fontStyle: 'bold'
       }).setOrigin(0.5);
 
-    const again = makeButton(this, W / 2, 470, 220, 54, win ? 'PLAY AGAIN' : 'TRY AGAIN', { size: '20px' });
-    again.on('pointerup', () => {
+    DOMUI.tapButton(W / 2, 470, 240, 58, win ? 'PLAY AGAIN' : 'TRY AGAIN', 20, () => {
       Audio.click();
       this.scene.start('Game', { level: 1, lives: 3, score: 0 });
     });
 
-    const menu = makeButton(this, W / 2, 540, 200, 48, 'MENU', { size: '18px' });
-    menu.on('pointerup', () => {
+    DOMUI.tapButton(W / 2, 540, 220, 52, 'MENU', 18, () => {
       Audio.click();
       this.scene.start('Menu');
     });

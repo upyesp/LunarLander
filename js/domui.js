@@ -167,5 +167,18 @@ const DOMUI = {
     wrap.appendChild(r);
     this.overlay.appendChild(wrap);
     return { wrap: wrap, input: r };
+  },
+
+  // ---- icon (SVG) tap button. Uses currentColor so the existing press-state
+  //      color flip (white<->black) recolours the icon automatically. ----
+  iconButton(gx, gy, gw, gh, svgMarkup, onClick) {
+    const b = this.holdButton(gx, gy, gw, gh, '', 1);
+    b.el.innerHTML = svgMarkup;
+    const svg = b.el.querySelector('svg');
+    if (svg) {
+      svg.style.cssText = 'width:62%;height:62%;display:block;pointer-events:none;';
+    }
+    b.el.addEventListener('click', (e) => { e.preventDefault(); onClick(); });
+    return b;
   }
 };

@@ -76,46 +76,6 @@ function drawLander(g, x, y, a, thrust, scale, flameLen) {
   }
 }
 
-// Create a labelled, hover/press styled button (interactive container).
-function makeButton(scene, x, y, w, h, label, opts) {
-  opts = opts || {};
-  const c = scene.add.container(x, y);
-  const g = scene.add.graphics();
-
-  const draw = (over) => {
-    g.clear();
-    if (over) {
-      g.fillStyle(0xffffff, 1);
-      g.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
-    }
-    g.lineStyle(2, 0xffffff, 1);
-    g.strokeRoundedRect(-w / 2, -h / 2, w, h, 10);
-  };
-
-  const t = scene.add.text(0, 0, label, {
-    fontFamily: 'Courier New, monospace',
-    fontSize: opts.size || '20px',
-    color: '#ffffff',
-    fontStyle: 'bold'
-  }).setOrigin(0.5);
-
-  c.add([g, t]);
-  c.setSize(w, h);
-  c.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains);
-
-  const refresh = (over) => { draw(over); t.setColor(over ? '#000000' : '#ffffff'); };
-  refresh(false);
-
-  c.on('pointerover', () => refresh(true));
-  c.on('pointerout',  () => refresh(false));
-  c.on('pointerdown', () => c.setScale(0.95));
-  c.on('pointerup',   () => c.setScale(1));
-  c.on('pointerupoutside', () => { c.setScale(1); refresh(false); });
-
-  c.label = t;
-  return c;
-}
-
 // Zero pad a number for score display
 function pad(n, l) {
   l = l || 5;

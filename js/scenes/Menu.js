@@ -26,9 +26,8 @@ class Menu extends Phaser.Scene {
       fontFamily: 'Courier New, monospace', fontSize: '20px', color: '#888888', align: 'center'
     }).setOrigin(0.5);
 
-    // New game button
-    const start = makeButton(this, W / 2, 360, 200, 58, 'NEW GAME', { size: '22px' });
-    start.on('pointerup', () => {
+    // New game button (DOM -> reliable on mobile)
+    DOMUI.tapButton(W / 2, 360, 220, 60, 'NEW GAME', 22, () => {
       Audio.init(); Audio.resume(); Audio.click();
       this.scene.start('Game', { level: 1, lives: 3, score: 0 });
     });
@@ -38,8 +37,18 @@ class Menu extends Phaser.Scene {
       fontFamily: 'Courier New, monospace', fontSize: '13px', color: '#666666'
     }).setOrigin(0.5);
 
-    // Settings gear (top-right)
-    this.makeGear(W - 34, 34);
+    // Settings gear (DOM, top-right). Generous 56x56 touch target.
+    const gearSVG =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="12" cy="12" r="3.2"/>' +
+      '<path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3' +
+      'M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M5.2 18.8l2.1-2.1M16.7 7.3l2.1-2.1"/>' +
+      '</svg>';
+    DOMUI.iconButton(W - 34, 34, 56, 56, gearSVG, () => {
+      Audio.init(); Audio.resume(); Audio.click();
+      this.scene.start('Settings');
+    });
 
     this.timeSince = 0;
   }
@@ -54,31 +63,6 @@ class Menu extends Phaser.Scene {
       g.fillStyle(0xffffff, a);
       g.fillRect(x, y, 1, 1);
     }
-  }
-
-  makeGear(x, y) {
-    const c = this.add.container(x, y);
-    const g = this.add.graphics();
-    g.lineStyle(2, 0xffffff, 1);
-    g.strokeCircle(0, 0, 11);
-    g.fillStyle(0xffffff, 0); // hit area
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const x1 = Math.cos(a) * 10, y1 = Math.sin(a) * 10;
-      const x2 = Math.cos(a) * 15, y2 = Math.sin(a) * 15;
-      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.strokePath();
-    }
-    c.add(g);
-    c.setSize(34, 34);
-    c.setInteractive(new Phaser.Geom.Circle(0, 0, 18), Phaser.Geom.Circle.Contains);
-    c.on('pointerover', () => c.setScale(1.1));
-    c.on('pointerout', () => c.setScale(1));
-    c.on('pointerdown', () => c.setScale(0.92));
-    c.on('pointerup', () => {
-      c.setScale(1);
-      Audio.init(); Audio.resume(); Audio.click();
-      this.scene.start('Settings');
-    });
   }
 
   update(time, delta) {
