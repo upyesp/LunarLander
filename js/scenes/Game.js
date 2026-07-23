@@ -25,6 +25,8 @@ class Game extends Phaser.Scene {
     this.lives = (typeof data.lives === 'number') ? data.lives : 3;
     this.score = data.score || 0;
     this.gravityMult = this.registry.get('gravity') || 1;
+    this.fuelMult = this.registry.get('fuel') || 1;
+    this.fuelMax = FUEL_MAX * this.fuelMult; // capacity scales with the setting
     this.state = 'playing'; // playing | landed | crashed | done
 
     Audio.init(); Audio.resume();
@@ -162,7 +164,7 @@ class Game extends Phaser.Scene {
       vx: (Math.random() - 0.5) * 12,
       vy: 0,
       a: 0,
-      fuel: FUEL_MAX
+      fuel: this.fuelMax
     };
     this.thrustingNow = false;
   }
@@ -199,7 +201,7 @@ class Game extends Phaser.Scene {
 
     // Only redraw the fuel bar when it has visibly changed; avoids a
     // per-frame Graphics re-upload (helps keep input responsive on mobile).
-    const ratio = Phaser.Math.Clamp(this.lander.fuel / FUEL_MAX, 0, 1);
+    const ratio = Phaser.Math.Clamp(this.lander.fuel / this.fuelMax, 0, 1);
     const low = ratio < 0.25;
     const step = Math.round(ratio * 50); // ~2% granularity
     if (this._lastFuelStep !== step || this._lastFuelLow !== low) {

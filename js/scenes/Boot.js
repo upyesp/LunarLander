@@ -6,10 +6,13 @@ class Boot extends Phaser.Scene {
     const hi = parseInt(localStorage.getItem('ll_hiscore') || '0', 10) || 0;
     let g = parseFloat(localStorage.getItem('ll_gravity'));
     if (isNaN(g)) g = 1.0;
+    let f = parseFloat(localStorage.getItem('ll_fuel'));
+    if (isNaN(f)) f = 1.0;
     const m = localStorage.getItem('ll_mute') === '1';
 
     this.registry.set('hiscore', hi);
     this.registry.set('gravity', g);
+    this.registry.set('fuel', f);
     this.registry.set('mute', m);
     Audio.setMuted(m);
 

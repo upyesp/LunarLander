@@ -1,15 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="4" fill="#000"/>
-  <g stroke="#fff" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <!-- capsule body -->
-    <polygon points="16,5 19,9 20,15 12,15 13,9"/>
-    <!-- legs -->
-    <line x1="13" y1="15" x2="9" y2="22"/>
-    <line x1="19" y1="15" x2="23" y2="22"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -18 44 32" width="32" height="32">
+  <rect x="-22" y="-18" width="44" height="32" rx="4" fill="#000"/>
+  <!-- Matches the in-game drawLander geometry (scale 1, upright) -->
+  <g stroke="#fff" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <!-- capsule body (pentagon, pointed nose up) -->
+    <polygon points="0,-16 5,-10 7,2 -7,2 -5,-10"/>
+    <!-- landing legs -->
+    <line x1="-7" y1="2" x2="-16" y2="12"/>
+    <line x1="7" y1="2" x2="16" y2="12"/>
     <!-- footpads -->
-    <line x1="7" y1="22" x2="11" y2="22"/>
-    <line x1="21" y1="22" x2="25" y2="22"/>
+    <line x1="-20" y1="12" x2="-12" y2="12"/>
+    <line x1="12" y1="12" x2="20" y2="12"/>
     <!-- nozzle -->
-    <line x1="14.5" y1="15" x2="17.5" y2="15"/>
+    <line x1="-3" y1="2" x2="3" y2="2"/>
   </g>
 </svg>
