@@ -32,7 +32,15 @@ body {
   inset: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  /* Horizontal centering is handled by Phaser's ScaleManager (autoCenter:
+     CENTER_BOTH), which writes an explicit margin-left onto the canvas.
+     Adding justify-content:center on top of that double-counts the offset --
+     flex centres the canvas's *margin box*, so the one-sided margin Phaser
+     sets shifts the canvas off-centre on wide (desktop) viewports. Leaving
+     the main axis at its default (flex-start) lets Phaser's left margin seat
+     the canvas dead-centre. This is a no-op on phones, where the canvas
+     already fills the viewport width, so mobile layout is unchanged. Vertical
+     centring via align-items is kept as-is for the same reason. */
 }
 
 #game-container canvas {
