@@ -17,6 +17,10 @@
 <body>
   <div id="game-container"></div>
 
+  <!-- In-app-browser install hint: load early so the banner shows before
+       Phaser (loaded from a CDN below) finishes. See js/inapp.js. -->
+  <script src="js/inapp.js"></script>
+
   <!-- Phaser engine -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 

@@ -53,3 +53,60 @@ body {
 #dom-overlay {
   pointer-events: none;
 }
+
+/* In-app-browser install hint (see js/inapp.js).
+   Shown only when the page is opened inside a messaging/social app browser,
+   which hides the normal "Add to Home Screen" / "Install app" path. */
+#ll-inapp-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #000;
+  border-bottom: 2px solid #fff;
+  color: #fff;
+  font-family: "Courier New", Courier, monospace;
+  pointer-events: auto;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+#ll-inapp-banner > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#ll-inapp-banner > div > div:first-child {
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1.1;
+}
+#ll-inapp-banner > div > div:last-child {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+#ll-inapp-banner button {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#ll-inapp-banner button:active {
+  background: #fff;
+  color: #000;
+}
