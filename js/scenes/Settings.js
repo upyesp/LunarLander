@@ -1,6 +1,9 @@
-/* Settings scene - gravity + fuel sliders, sound toggle, back button.
-   Controls are native DOM (see js/domui.js) for reliable mobile touch.
-   Phaser only renders the static text here. */
+/* Settings scene - difficulty selector, sound toggle, back button.
+   The DIFFICULTY choice is the single source of truth for the gravity + fuel
+   multipliers the Game scene uses (see DIFFICULTIES in js/util.js); picking a
+   preset writes both values into the registry and persists the choice (like
+   the sound toggle). Controls are native DOM (js/domui.js) for reliable
+   mobile touch; Phaser only renders the static text here. */
 class Settings extends Phaser.Scene {
   constructor() { super('Settings'); }
 
@@ -12,29 +15,18 @@ class Settings extends Phaser.Scene {
       fontFamily: 'Courier New, monospace', fontSize: '34px', fontStyle: 'bold', color: '#ffffff'
     }).setOrigin(0.5);
 
-    // ===== GRAVITY =====
-    this.add.text(W / 2, 146, 'GRAVITY', {
+    // ===== DIFFICULTY =====
+    this.add.text(W / 2, 150, 'DIFFICULTY', {
       fontFamily: 'Courier New, monospace', fontSize: '18px', color: '#ffffff'
     }).setOrigin(0.5);
 
-    this.gravityValText = this.add.text(W / 2, 176, '', {
-      fontFamily: 'Courier New, monospace', fontSize: '26px', fontStyle: 'bold', color: '#ffffff'
+    // Shows the gravity + fuel multipliers the active preset produces, so the
+    // player can still see the underlying values (previously shown via sliders).
+    this.diffInfoText = this.add.text(W / 2, 282, '', {
+      fontFamily: 'Courier New, monospace', fontSize: '13px', color: '#ffffff'
     }).setOrigin(0.5);
 
-    this.add.text(W / 2, 268, '1.0x = lunar   higher = harder', {
-      fontFamily: 'Courier New, monospace', fontSize: '12px', color: '#666666'
-    }).setOrigin(0.5);
-
-    // ===== FUEL =====
-    this.add.text(W / 2, 308, 'FUEL', {
-      fontFamily: 'Courier New, monospace', fontSize: '18px', color: '#ffffff'
-    }).setOrigin(0.5);
-
-    this.fuelValText = this.add.text(W / 2, 338, '', {
-      fontFamily: 'Courier New, monospace', fontSize: '26px', fontStyle: 'bold', color: '#ffffff'
-    }).setOrigin(0.5);
-
-    this.add.text(W / 2, 430, '1.0x = default   more = easier', {
+    this.add.text(W / 2, 310, 'harder = stronger gravity, less fuel', {
       fontFamily: 'Courier New, monospace', fontSize: '12px', color: '#666666'
     }).setOrigin(0.5);
 
@@ -42,34 +34,36 @@ class Settings extends Phaser.Scene {
     DOMUI.init();
     DOMUI.clear();
 
-    // Gravity slider
-    let g = this.registry.get('gravity');
-    if (typeof g !== 'number' || isNaN(g)) g = 1.0;
-    const applyGravity = (v) => {
-      this.registry.set('gravity', v);
-      localStorage.setItem('ll_gravity', String(v));
-      this.gravityValText.setText('\u00d7' + v.toFixed(1));
-    };
-    applyGravity(g);
-    DOMUI.range(W / 2, 232, 280, 0.5, 2.5, 0.1, g, applyGravity);
+    let diff = this.registry.get('difficulty');
+    if (!DIFFICULTIES[diff]) diff = DEFAULT_DIFFICULTY;
 
-    // Fuel slider (identical styling)
-    let f = this.registry.get('fuel');
-    if (typeof f !== 'number' || isNaN(f)) f = 1.0;
-    const applyFuel = (v) => {
-      this.registry.set('fuel', v);
-      localStorage.setItem('ll_fuel', String(v));
-      this.fuelValText.setText('\u00d7' + v.toFixed(1));
+    // Apply a preset: push gravity + fuel into the registry (so the Game scene
+    // picks them up unchanged) and remember the difficulty for next launch.
+    const applyDifficulty = (d) => {
+      const p = DIFFICULTIES[d];
+      this.registry.set('difficulty', d);
+      this.registry.set('gravity', p.gravity);
+      this.registry.set('fuel', p.fuel);
+      localStorage.setItem('ll_difficulty', d);
+      this.diffInfoText.setText(
+        'GRAVITY \u00d7' + p.gravity.toFixed(1) +
+        '    FUEL \u00d7' + p.fuel.toFixed(1));
     };
-    applyFuel(f);
-    DOMUI.range(W / 2, 394, 280, 0.5, 2.5, 0.1, f, applyFuel);
+    applyDifficulty(diff);
+
+    // Three-way difficulty selector
+    DOMUI.segmented(W / 2, 210, 280, 54, [
+      { value: 'easy',   label: 'EASY' },
+      { value: 'medium', label: 'MEDIUM' },
+      { value: 'hard',   label: 'HARD' }
+    ], diff, (v) => { applyDifficulty(v); Audio.click(); });
 
     // Sound toggle
     const refreshSound = () => {
       const muted = this.registry.get('mute') === true;
       this.soundBtn.el.textContent = 'SOUND: ' + (muted ? 'OFF' : 'ON');
     };
-    this.soundBtn = DOMUI.tapButton(W / 2, 482, 220, 50, '', 18, () => {
+    this.soundBtn = DOMUI.tapButton(W / 2, 430, 220, 50, '', 18, () => {
       const nm = !(this.registry.get('mute') === true);
       this.registry.set('mute', nm);
       localStorage.setItem('ll_mute', nm ? '1' : '0');

@@ -169,6 +169,86 @@ const DOMUI = {
     return { wrap: wrap, input: r };
   },
 
+  // ---- segmented control: a row of mutually-exclusive options.
+  //      options: [{value,label}]; current: the selected value;
+  //      onSelect(value) fires when a segment is tapped.
+  segmented(gx, gy, gw, gh, options, current, onSelect) {
+    this.init();
+    const wrap = document.createElement('div');
+    wrap.style.cssText =
+      'position:absolute;display:flex;' +
+      'left:' + (gx / GAME_W * 100) + '%;' +
+      'top:' + (gy / GAME_H * 100) + '%;' +
+      'width:' + (gw / GAME_W * 100) + '%;' +
+      'height:' + (gh / GAME_H * 100) + '%;' +
+      'transform:translate(-50%,-50%);';
+
+    const fontSize = Math.max(13, Math.floor(gh * 0.34));
+    const segs = [];
+    let currentVal = current;
+
+    // Paint the selected segment solid; leave the others outlined.
+    const paint = (value) => {
+      segs.forEach(s => {
+        const sel = s.dataset.value === value;
+        s.style.background = sel ? '#fff' : 'transparent';
+        s.style.color = sel ? '#000' : '#fff';
+      });
+    };
+
+    options.forEach((opt, i) => {
+      const seg = document.createElement('div');
+      seg.textContent = opt.label;
+      seg.dataset.value = opt.value;
+
+      // Joined pill: round only the outer corners; inner segments share a
+      // single border by dropping their left edge.
+      let radius = '0';
+      if (i === 0) radius = '12px 0 0 12px';
+      else if (i === options.length - 1) radius = '0 12px 12px 0';
+
+      seg.style.cssText =
+        'flex:1 1 0;pointer-events:auto;box-sizing:border-box;' +
+        'font-size:calc(' + fontSize + 'px * var(--s));' +
+        'font-family:"Courier New",monospace;font-weight:bold;' +
+        'display:flex;align-items:center;justify-content:center;' +
+        'text-align:center;line-height:1.05;' +
+        'border:2px solid #fff;border-radius:' + radius + ';' +
+        (i > 0 ? 'border-left-width:0;' : '') +
+        'color:#fff;background:transparent;' +
+        'user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;' +
+        '-webkit-tap-highlight-color:transparent;touch-action:none;outline:none;' +
+        'margin:0;padding:0;cursor:pointer;';
+
+      // Pointer capture (like holdButton) keeps release reliable on mobile,
+      // even if the finger drifts off the segment.
+      seg.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        try { seg.setPointerCapture(e.pointerId); } catch (_) {}
+        seg.style.background = '#fff';
+        seg.style.color = '#000';
+      });
+      seg.addEventListener('pointerup', (e) => {
+        e.preventDefault();
+        try { seg.releasePointerCapture(e.pointerId); } catch (_) {}
+        currentVal = seg.dataset.value;
+        paint(currentVal);
+        onSelect(currentVal);
+      });
+      // If the gesture is cancelled (e.g. browser takes over the touch),
+      // drop the press flash back to the real selection.
+      seg.addEventListener('pointercancel', () => paint(currentVal));
+      seg.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      segs.push(seg);
+      wrap.appendChild(seg);
+    });
+
+    paint(currentVal);
+    this.overlay.appendChild(wrap);
+    return { wrap: wrap, segs: segs, set: paint };
+  },
+
   // ---- icon (SVG) tap button. Uses currentColor so the existing press-state
   //      color flip (white<->black) recolours the icon automatically. ----
   iconButton(gx, gy, gw, gh, svgMarkup, onClick) {

@@ -13,6 +13,18 @@ const FUEL_MAX     = 1000; // fuel units at start of each level
 const FUEL_BURN    = 22;   // fuel units burned per second of thrust
 const ROT_SPEED    = 3.0;  // radians per second while rotating
 
+// --- Difficulty presets (multipliers relative to the 1.0 defaults above) ---
+// Each difficulty fixes both the gravity and fuel multipliers. Easy uses the
+// game's unmodified defaults; harder levels apply stronger gravity and less
+// fuel. The chosen preset is the single source of truth for the gravity +
+// fuel values the Game scene reads from the registry (see Boot / Settings).
+const DIFFICULTIES = {
+  easy:   { gravity: 1.0, fuel: 1.0 }, // the game's defaults
+  medium: { gravity: 1.2, fuel: 0.7 }, // +20% gravity, -30% fuel
+  hard:   { gravity: 1.4, fuel: 0.3 }  // +40% gravity, -70% fuel
+};
+const DEFAULT_DIFFICULTY = 'medium'; // used on a fresh launch (no saved setting)
+
 // Landing success thresholds
 const VY_OK  = 42;  // max vertical speed   (px/s)
 const VX_OK  = 26;  // max horizontal speed (px/s)
