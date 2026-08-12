@@ -11,6 +11,7 @@ const GRAVITY_BASE = 28;   // px/s^2 at gravity multiplier 1.0
 const THRUST       = 82;   // px/s^2 of thrust (always > max gravity)
 const FUEL_MAX     = 1000; // fuel units at start of each level
 const FUEL_BURN    = 22;   // fuel units burned per second of thrust
+const FUEL_LEVEL_DECAY = 0.8; // each level beyond the first has 20% less fuel
 const ROT_SPEED    = 3.0;  // radians per second while rotating
 
 // --- Difficulty presets (multipliers relative to the 1.0 defaults above) ---

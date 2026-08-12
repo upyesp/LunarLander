@@ -158,15 +158,24 @@ class Game extends Phaser.Scene {
 
   // ---------- lander ----------
   resetLander() {
+    this.fuelCap = this.fuelForLevel(this.level);
     this.lander = {
       x: this.W / 2,
       y: 70,
       vx: (Math.random() - 0.5) * 12,
       vy: 0,
       a: 0,
-      fuel: this.fuelMax
+      fuel: this.fuelCap
     };
     this.thrustingNow = false;
+  }
+
+  // Fuel available on a given level: the difficulty-adjusted base capacity,
+  // reduced by FUEL_LEVEL_DECAY for each level beyond the first, so later
+  // levels are progressively harder. This is the capacity for the current
+  // level/attempt and also scales the HUD fuel bar.
+  fuelForLevel(n) {
+    return this.fuelMax * Math.pow(FUEL_LEVEL_DECAY, n - 1);
   }
 
   // ---------- HUD ----------
@@ -201,7 +210,7 @@ class Game extends Phaser.Scene {
 
     // Only redraw the fuel bar when it has visibly changed; avoids a
     // per-frame Graphics re-upload (helps keep input responsive on mobile).
-    const ratio = Phaser.Math.Clamp(this.lander.fuel / this.fuelMax, 0, 1);
+    const ratio = Phaser.Math.Clamp(this.lander.fuel / this.fuelCap, 0, 1);
     const low = ratio < 0.25;
     const step = Math.round(ratio * 50); // ~2% granularity
     if (this._lastFuelStep !== step || this._lastFuelLow !== low) {
